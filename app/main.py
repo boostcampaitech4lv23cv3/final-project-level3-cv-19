@@ -4,9 +4,10 @@ from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 
 application = FastAPI()
+video_device_addr = 0
 
 
-def get_cam_stream(cam=cv2.VideoCapture(0)):
+def get_cam_stream(cam=cv2.VideoCapture(video_device_addr)):
     while True:
         success, frame = cam.read()
         if not success:

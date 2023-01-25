@@ -3,7 +3,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 
 application = FastAPI()
-req_url = "http://127.0.0.1:8001"  # GPU_SERVER_ADDRESS
+req_url = "http://127.0.0.1:8001"  # API_SERVER_ADDRESS
 # ==================================== 중계 시 필요한 변수 및 함수들
 forward_data = bytes()
 boundary = str()
@@ -21,7 +21,6 @@ def get_stream():
 async def relayed(req: Request = requests.get(req_url + "/original", stream=True)):
     global forward_data, boundary, receiving
     boundary = req.headers.get("boundary")
-    print(boundary)
     receiving = True
     async for chunk in req.stream():
         forward_data = chunk
