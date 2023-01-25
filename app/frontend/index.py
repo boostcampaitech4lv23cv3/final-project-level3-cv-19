@@ -32,7 +32,6 @@ def main():
             frame_window.image(frame)
             _, mat_buffer = cv2.imencode(".jpg", frame)
             img_byte = mat_buffer.tobytes()
-            # sr = requests.post(API_SERVER_ADDR, data=)
-            # print(sr.content)
+
 
 main()
