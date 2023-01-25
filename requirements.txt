@@ -4,6 +4,7 @@ torchvision==0.14.0
 uvicorn==0.20.0
 fastapi==0.89.1
 streamlit
+starlette
 pydantic==1.10.4
 pillow
 opencv-python
