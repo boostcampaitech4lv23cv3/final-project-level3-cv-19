@@ -2,7 +2,6 @@ import os
 import re
 import math
 import shlex
-import ffmpeg
 from subprocess import check_call, PIPE, Popen
 
 re_metadata = re.compile('Duration: (\d{2}):(\d{2}):(\d{2})\.\d+,.*\n.* (\d+(\.\d+)?) fps')
@@ -44,10 +43,11 @@ def split_segment(filename, n, by='size'):
         # Use split_count
         split_size = round(video_length / split_count)
     pth, ext = filename.rsplit(".", 1)
-    _, pth = pth.rsplit("/", 1)
-    cmd = f'ffmpeg -nostdin -hide_banner -loglevel panic -i "{filename}" -c copy -an -map 0 -segment_time {split_size} -reset_timestamps 1 -g {round(split_size * video_fps)} -sc_threshold 0 -force_key_frames "expr:gte(t,n_forced*{split_size})" -f segment -y "{pth}-%d.{ext}"'
+    path, fn = pth.rsplit("/", 1)
+    cmd = f'ffmpeg -nostdin -hide_banner -loglevel panic -i "{filename}" -c copy -an -map 0 -segment_time {split_size} -reset_timestamps 1 -g {round(split_size * video_fps)} -sc_threshold 0 -force_key_frames "expr:gte(t,n_forced*{split_size})" -f segment -y "app/tmp/{fn}-%04d.{ext}"'
     check_call(shlex.split(cmd), universal_newlines=True)
-    return [f'app/tmp/{pth}-{i}.{ext}' for i in range(split_count)]
+    # return [f'app/tmp/{pth}-{i:04}.{ext}' for i in range(split_count)]
+    return [f"app/tmp/{item}" for item in os.listdir(f"{path}/../tmp/")]
 
 
 def split_cut(filename, n, by='size'):

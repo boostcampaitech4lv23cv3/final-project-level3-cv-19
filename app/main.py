@@ -1,14 +1,12 @@
-import io
 import os
 import shutil
-from pathlib import Path
-from app.ffmpeg_func import split_cut, concatenate
+from app.ffmpeg_func import split_cut, split_segment, concatenate
 
 import requests
 import streamlit as st
 
 st.set_page_config(layout="centered")
-SERVER_URL = "http://localhost:8002/results"
+SERVER_URL = "http://localhost:30002/results"
 tmp_path = "app/tmp/"
 upload_path = "app/uploaded/"
 tmp_rcv_path = "app/tmp_rcv/"
@@ -33,7 +31,8 @@ def main():
             st.success(f"파일이 서버에 저장되었습니다.  {save_path} ")
         st.write("...GPU 서버로 파일 전송 중...")
         idx = 0
-        for file in sorted(split_cut(save_path, 2)):
+        # for file in sorted(split_cut(save_path, 2)):
+        for file in sorted(split_segment(save_path, 2)):
             files = [("files", open(file, 'rb'))]
             req = requests.post(SERVER_URL, files=files)
             if req.status_code == 200:
