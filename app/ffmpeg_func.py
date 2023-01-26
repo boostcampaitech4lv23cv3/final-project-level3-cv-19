@@ -45,7 +45,7 @@ def split_segment(filename, n, by='size'):
         split_size = round(video_length / split_count)
     pth, ext = filename.rsplit(".", 1)
     _, pth = pth.rsplit("/", 1)
-    cmd = f'ffmpeg -hide_banner -loglevel panic -i "{filename}" -c copy -map 0 -segment_time {split_size} -reset_timestamps 1 -g {round(split_size * video_fps)} -sc_threshold 0 -force_key_frames "expr:gte(t,n_forced*{split_size})" -f segment -y "{pth}-%d.{ext}"'
+    cmd = f'ffmpeg -nostdin -hide_banner -loglevel panic -i "{filename}" -c copy -map 0 -segment_time {split_size} -reset_timestamps 1 -g {round(split_size * video_fps)} -sc_threshold 0 -force_key_frames "expr:gte(t,n_forced*{split_size})" -f segment -y "{pth}-%d.{ext}"'
     check_call(shlex.split(cmd), universal_newlines=True)
     return [f'app/tmp/{pth}-{i}.{ext}' for i in range(split_count)]
 
@@ -77,7 +77,7 @@ def split_cut(filename, n, by='size'):
         pth, ext = filename.rsplit(".", 1)
         _, pth = pth.rsplit("/", 1)
         output_path = f'app/tmp/{pth}-{i + 1 :04}.{ext}'
-        cmd = f'ffmpeg -hide_banner -loglevel panic -ss {split_start} -t {split_size} -i "{filename}" -y "{output_path}"'
+        cmd = f'ffmpeg -nostdin -i "{filename}" -ss {split_start} -t {split_size} -vcodec copy -acodec copy -y "{output_path}"'
         check_call(shlex.split(cmd), universal_newlines=True)
         output.append(output_path)
     return output
@@ -89,5 +89,5 @@ def concatenate(file_path: str, dst_file: str):
         for fn in os.listdir(file_path):
             if fn.endswith("mp4"):
                 f.write(f"file '{fn}'\n")
-    cmd = f"ffmpeg -f concat -safe 0 -i {txt_fp} -c copy {dst_file}"
+    cmd = f"ffmpeg -nostdin -f concat -safe 0 -i {txt_fp} -c copy {dst_file}"
     check_call(shlex.split(cmd), universal_newlines=True)
