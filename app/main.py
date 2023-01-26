@@ -29,16 +29,19 @@ def main():
         with open(save_path, 'wb') as f:
             f.write(uploaded_file.getbuffer())
             st.success(f"파일이 서버에 저장되었습니다.  {save_path} ")
-        st.write("...GPU 서버로 파일 전송 중...")
-        idx = 0
-        # for file in sorted(split_cut(save_path, 2)):
-        for file in sorted(split_segment(save_path, 2)):
+        placeholder = st.empty()
+        placeholder.info("GPU 서버로 파일 전송 중")
+        # split_list = sorted(split_cut(save_path, 2))
+        split_list = sorted(split_segment(save_path, 2))
+        for idx, file in enumerate(split_list):
+            placeholder.success(f"전송 완료, 파일 처리 중 {idx/len(split_list)*100:.1f} %")
             files = [("files", open(file, 'rb'))]
             req = requests.post(SERVER_URL, files=files)
             if req.status_code == 200:
                 with open(os.path.join(tmp_rcv_path, f"{idx:04}.mp4"), 'wb') as f:
                     f.write(req.content)
             idx += 1
+        placeholder.empty()
         rslt_file = os.path.join(dst_path, "result.mp4")
         concatenate(tmp_rcv_path, rslt_file)
         st.video(open(rslt_file, 'rb').read(), format="video/mp4")
