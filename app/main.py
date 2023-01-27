@@ -4,6 +4,31 @@ from app.ffmpeg_func import split_cut, split_segment, concatenate
 
 import requests
 import streamlit as st
+try:
+    from streamlit.runtime.runtime import SessionInfo
+except ModuleNotFoundError:
+    # streamlit < 1.12.1
+    try:
+        from streamlit.web.server.server import SessionInfo  # type: ignore
+    except ModuleNotFoundError:
+        # streamlit < 1.12.0
+        from streamlit.server.server import SessionInfo  # type: ignore
+
+try:
+    from streamlit.runtime.scriptrunner import get_script_run_ctx
+except ModuleNotFoundError:
+    # streamlit < 1.12.0
+    try:
+        from streamlit.scriptrunner import get_script_run_ctx  # type: ignore
+    except ModuleNotFoundError:
+        # streamlit < 1.8
+        try:
+            from streamlit.script_run_context import get_script_run_ctx  # type: ignore
+        except ModuleNotFoundError:
+            # streamlit < 1.4
+            from streamlit.report_thread import (  # type: ignore
+                get_report_ctx as get_script_run_ctx,
+            )
 
 st.set_page_config(layout="centered")
 SERVER_URL = "http://localhost:30002/results"
@@ -19,8 +44,18 @@ def dir_func(path: str):
         os.makedirs(path)
 
 
+def get_session_id() -> str:
+    ctx = get_script_run_ctx()
+    if ctx is None:
+        raise Exception("Failed to get the thread context")
+
+    return ctx.session_id
+
+
 def main():
     st.title("보행 시 장애물 안내 서비스")
+    user_session = get_session_id()
+    st.write(f"Session ID : {user_session}")
     uploaded_file = st.file_uploader("동영상을 선택하세요", type=["mp4"])
 
     if uploaded_file:
