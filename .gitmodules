@@ -1,6 +1,9 @@
-[submodule "yolov8/ultralytics"]
-	path = yolov8/ultralytics
+[submodule "tensorrt/yolov7"]
+	path = tensorrt/yolov7
+	url = git@github.com:boostcampaitech4lv23cv3/yolov7.git
+[submodule "tensorrt/ultralytics"]
+	path = tensorrt/ultralytics
 	url = git@github.com:boostcampaitech4lv23cv3/ultralytics.git
-[submodule "yolov8/TensorRT-For-YOLO-Series"]
-	path = yolov8/TensorRT-For-YOLO-Series
+[submodule "tensorrt/TensorRT-For-YOLO-Series"]
+	path = tensorrt/TensorRT-For-YOLO-Series
 	url = git@github.com:boostcampaitech4lv23cv3/TensorRT-For-YOLO-Series.git
