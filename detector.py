@@ -130,7 +130,8 @@ def detect(src: str):
 
     vid_writer.release()
 
+    h264_encoding(str(p.name),str("encode-"+p.name))
     # return open(result_path, 'rb')
-    return str(p.name)
+    return str("encode-"+p.name)
 
 #detect()
