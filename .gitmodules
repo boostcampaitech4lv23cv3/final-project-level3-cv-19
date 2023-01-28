@@ -1,9 +1,9 @@
-[submodule "tensorrt/yolov7"]
-	path = tensorrt/yolov7
+[submodule "onnx_tensorrt/yolov7"]
+	path = onnx_tensorrt/yolov7
 	url = git@github.com:boostcampaitech4lv23cv3/yolov7.git
-[submodule "tensorrt/ultralytics"]
-	path = tensorrt/ultralytics
+[submodule "onnx_tensorrt/ultralytics"]
+	path = onnx_tensorrt/ultralytics
 	url = git@github.com:boostcampaitech4lv23cv3/ultralytics.git
-[submodule "tensorrt/TensorRT-For-YOLO-Series"]
-	path = tensorrt/TensorRT-For-YOLO-Series
+[submodule "onnx_tensorrt/TensorRT-For-YOLO-Series"]
+	path = onnx_tensorrt/TensorRT-For-YOLO-Series
 	url = git@github.com:boostcampaitech4lv23cv3/TensorRT-For-YOLO-Series.git
