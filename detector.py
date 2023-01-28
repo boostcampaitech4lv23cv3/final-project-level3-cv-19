@@ -7,14 +7,14 @@ import sys
 
 import numpy as np
 from pathlib import Path
-from yolov8.ultralytics.nn.autobackend import AutoBackend
-from yolov8.ultralytics.yolo.data.dataloaders.stream_loaders import LoadStreams,LoadImages
+from yolov8.ultralytics.ultralytics.nn.autobackend import AutoBackend
+from yolov8.ultralytics.ultralytics.yolo.data.dataloaders.stream_loaders import LoadStreams,LoadImages
 #from yolov8.ultralytics.yolo.data.utils import VID_FORMATS
-from yolov8.ultralytics.yolo.utils.checks import check_imgsz
-from yolov8.ultralytics.yolo.utils.plotting import Annotator, colors
-from yolov8.ultralytics.yolo.utils.ops import scale_boxes,non_max_suppression
-from yolov8.ultralytics.yolo.engine.results import Results
-from yolov8.ultralytics.yolo.utils.files import increment_path
+from yolov8.ultralytics.ultralytics.yolo.utils.checks import check_imgsz
+from yolov8.ultralytics.ultralytics.yolo.utils.plotting import Annotator, colors
+from yolov8.ultralytics.ultralytics.yolo.utils.ops import scale_boxes,non_max_suppression
+from yolov8.ultralytics.ultralytics.yolo.engine.results import Results
+from yolov8.ultralytics.ultralytics.yolo.utils.files import increment_path
 
 from ffmpeg_func import h264_encoding
 
