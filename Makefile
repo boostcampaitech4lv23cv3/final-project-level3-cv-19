@@ -1,5 +1,5 @@
 run_server:
-	python -m gpu_dummy
+	python -m onnx_tensorrt
 
 run_client:
 	python -m streamlit run app/main.py --server.port=30001 --server.fileWatcherType none
