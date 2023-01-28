@@ -1,4 +1,5 @@
 import os
+import pathlib
 import re
 import math
 import shlex
@@ -43,11 +44,11 @@ def split_segment(filename, n, by='size'):
         # Use split_count
         split_size = round(video_length / split_count)
     pth, ext = filename.rsplit(".", 1)
-    path, fn = pth.rsplit("/", 1)
-    cmd = f'ffmpeg -nostdin -hide_banner -loglevel panic -i "{filename}" -c copy -an -map 0 -segment_time {split_size} -reset_timestamps 1 -g {round(split_size * video_fps)} -sc_threshold 0 -force_key_frames "expr:gte(t,n_forced*{split_size})" -f segment -y "app/tmp/{fn}-%04d.{ext}"'
+    uploaded_path, session_id, fn = pth.rsplit("/", 2)
+    save_path = str(pathlib.Path(uploaded_path).parent.joinpath("tmp").joinpath(session_id))
+    cmd = f'ffmpeg -nostdin -hide_banner -loglevel panic -i "{filename}" -c copy -an -map 0 -segment_time {split_size} -reset_timestamps 1 -g {round(split_size * video_fps)} -sc_threshold 0 -force_key_frames "expr:gte(t,n_forced*{split_size})" -f segment -y "{save_path}/{fn}-%04d.{ext}"'
     check_call(shlex.split(cmd), universal_newlines=True)
-    # return [f'app/tmp/{pth}-{i:04}.{ext}' for i in range(split_count)]
-    return [f"app/tmp/{item}" for item in os.listdir(f"{path}/../tmp/")]
+    return os.listdir(save_path)
 
 
 def split_cut(filename, n, by='size'):
@@ -75,8 +76,9 @@ def split_cut(filename, n, by='size'):
     for i in range(split_count):
         split_start = split_size * i
         pth, ext = filename.rsplit(".", 1)
-        _, pth = pth.rsplit("/", 1)
-        output_path = f'app/tmp/{pth}-{i + 1 :04}.{ext}'
+        uploaded_path, session_id, fn = pth.rsplit("/", 2)
+        save_path = str(pathlib.Path(uploaded_path).parent.joinpath(session_id))
+        output_path = f'{save_path}/{fn}-{i + 1 :04}.{ext}'
         cmd = f'ffmpeg -nostdin -i "{filename}" -ss {split_start} -t {split_size} -vcodec copy -an -y "{output_path}"'
         check_call(shlex.split(cmd), universal_newlines=True)
         output.append(output_path)
