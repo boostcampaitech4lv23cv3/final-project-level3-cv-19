@@ -36,7 +36,7 @@ def detect(src: str):
 
     #src = _transform_image(image_bytes)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = AutoBackend(weights='./yolov8/yolov8n_custom.pt',device=device,dnn=False,fp16=False)
+    model = AutoBackend(weights='yolov8n_custom.pt',device=device,dnn=False,fp16=False)
     model.eval()
     stride, names, pt= model.stride, model.names, model.pt
     imgsz=(640,640)
