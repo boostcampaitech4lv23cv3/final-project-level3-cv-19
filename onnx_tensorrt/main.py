@@ -14,7 +14,7 @@ async def predict(request: Request, files: List[UploadFile] = File(...)):
         with open(file_name, 'wb') as f:
             f.write(video_bytes)
 
-        pred = BaseEngine(engine_path='./onnx_tensorrt/yolov8n.trt')
+        pred = BaseEngine(engine_path='./onnx_tensorrt/yolov8n_custom.trt')
         result = pred.detect_video(file_name=file_name, conf=0.1, end2end=True)
 
         result_b = None
