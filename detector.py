@@ -66,11 +66,11 @@ def detect(src: str):
     
         preds = model(im)
 
-        p = non_max_suppression(preds,conf_thres=0.25,iou_thres=0.45,classes=None,agnostic=False,max_det=1000)
+        preds = non_max_suppression(preds,conf_thres=0.25,iou_thres=0.45,classes=None,agnostic=False,max_det=1000)
 
         results=[]
 
-        for i, pred in enumerate(p):
+        for i, pred in enumerate(preds):
             p, im0, _ = path,im0s.copy(),getattr(dataset,'frame',0)
             p = Path(p)
             txt_file_name=p.stem
@@ -83,12 +83,14 @@ def detect(src: str):
             annotator=Annotator(im0,line_width=2,example=str(names))
 
             det=results[i].boxes
-
+            box_info=open(f'{txt_file_name}.txt','a')
+            box_info.write(f'{frame_idx}\n')
             for d in reversed(det):
                 cls, conf = d.cls.squeeze(), d.conf.squeeze()
                 c=int(cls)
                 label = f'{model.names[c]}{conf:.2f}'
                 annotator.box_label(d.xyxy.squeeze(),label,color=colors(c,True))
+                box_info.write(f'{d.xyxy.squeeze().tolist()} {model.names[c]}\n')
 
         im0 = annotator.result()
         frames.append(im0)
