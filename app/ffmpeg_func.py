@@ -98,3 +98,26 @@ def concatenate(file_path: str, dst_file: str):
 def h264_encoding(file_path: str, dst_file: str):
     cmd = f"ffmpeg -i {file_path} -vcodec libx264 -profile:v high -preset slow -pix_fmt yuv420p -src_range 1 -dst_range 1 -crf 18 -g 30 -bf 2 -an -movflags faststart {dst_file}"
     check_call(shlex.split(cmd), universal_newlines=True)
+
+
+def video_preprocessing(file_path: str, dst_file: str, resize_h=None, tgt_framerate=None):  # For increasing Video Process Performance
+    resizing_cmd = ""
+    framerate_chg_cmd = ""
+    if resize_h is None and tgt_framerate is None:
+        print("Either 'resize_h' or 'tgt_framerate' should not be None, Designate at least one parameter")
+        raise Exception
+
+    if isinstance(resize_h, int):
+        resizing_cmd = f" -vf scale=-1:{resize_h}"
+    elif resize_h is not None:
+        print("Something wrong in parameter 'resize_h', please check again")
+        raise TypeError
+
+    if isinstance(tgt_framerate, int):
+        framerate_chg_cmd = f" -r {tgt_framerate}"
+    elif tgt_framerate is not None:
+        print("Something wrong in parameter 'tgt_framerate', please check again")
+        raise TypeError
+
+    cmd = f"ffmpeg -i {file_path}{resizing_cmd} -an -movflags faststart{framerate_chg_cmd} -y {dst_file}"
+    check_call(shlex.split(cmd), universal_newlines=True)
