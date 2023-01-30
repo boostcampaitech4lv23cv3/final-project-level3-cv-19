@@ -88,7 +88,7 @@ def split_cut(filename, n, by='size'):
 def concatenate(file_path: str, dst_file: str):
     txt_fp = os.path.join(file_path, "fileList.txt")
     with open(txt_fp, "w+", encoding='utf-8') as f:
-        for fn in os.listdir(file_path):
+        for fn in sorted(os.listdir(file_path)):
             if fn.endswith("mp4"):
                 f.write(f"file '{fn}'\n")
     cmd = f"ffmpeg -nostdin -f concat -safe 0 -i {txt_fp} -c copy {dst_file}"
