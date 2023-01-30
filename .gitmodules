@@ -1,0 +1,4 @@
+[submodule "yolov8/ultralytics"]
+	path = yolov8/ultralytics
+	url = git@github.com:boostcampaitech4lv23cv3/ultralytics.git
+	branch = main
