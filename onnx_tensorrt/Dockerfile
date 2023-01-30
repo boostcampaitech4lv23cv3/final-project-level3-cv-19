@@ -26,7 +26,7 @@ RUN git clone https://github.com/ultralytics/ultralytics /usr/src/ultralytics
 
 # Install pip packages
 RUN python -m pip install --upgrade pip wheel
-RUN pip install --no-cache ultralytics==8.0.22 albumentations comet gsutil notebook 'opencv-python<4.6.0.66'
+RUN pip install --no-cache ultralytics albumentations comet gsutil notebook 'opencv-python<4.6.0.66'
 
 # Set environment variables
 ENV OMP_NUM_THREADS=1
@@ -72,6 +72,32 @@ RUN pip install --upgrade nvidia-tensorrt
 RUN pip install pycuda
 
 #RUN git clone https://github.com/Linaom1214/TensorRT-For-YOLO-Series.git /usr/src/TensorRT-For-YOLO-Series
+
+# NVIDIA CODEC
+RUN git clone https://git.videolan.org/git/ffmpeg/nv-codec-headers.git
+RUN cd nv-codec-headers && make install && cd -
+
+# ffmpeg fastapi uvicorn
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Seoul
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+RUN apt update
+RUN apt install -y git
+RUN apt install -y tzdata
+#RUN dpkg-reconfigure --frontend noninteractive tzdata
+RUN apt install -y ffmpeg
+
+# fastapi
+RUN pip install uvicorn fastapi python-multipart
+RUN pip install -U ultralytics
+
+# fix error
+RUN pip uninstall opencv-python -y
+RUN pip uninstall opencv-contrib-python -y
+RUN pip uninstall opencv-python-headless -y
+RUN apt install -y python3-opencv  
+RUN pip install 'opencv-python<4.6.0.66' 
+RUN pip install 'opencv-contrib-python<4.6.0.66'
 
 WORKDIR /usr/src
 RUN rm -rf /usr/src/ultralytics
