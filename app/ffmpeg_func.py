@@ -104,7 +104,7 @@ def video_preprocessing(file_path: str, dst_file: str, resize_h=None, tgt_framer
     resizing_cmd = ""
     framerate_chg_cmd = ""
     if resize_h is None and tgt_framerate is None:
-        print("Either 'resize_h' or 'tgt_framerate' should not be None, Designate at least one parameter")
+        print("Both 'resize_h' and 'tgt_framerate' should not be None, Designate at least one parameter")
         raise Exception
 
     if isinstance(resize_h, int):
