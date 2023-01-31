@@ -4,6 +4,7 @@ import cv2
 import torch
 
 import sys
+import json
 
 import numpy as np
 from pathlib import Path
@@ -22,7 +23,7 @@ import ffmpeg
 
 #def detect(src='./final-project-level3-cv-19-feature-videoclip/app/uploaded/test.mp4'):
 #def detect(src: str, result_path: str="test.mp4"):
-def detect(src: str):
+def detect(src: str,dst: str):
     #f=io.BytesIO(image_bytes)
     #cv2.imdecode(image_bytes,'mp4v')
     #probe = ffmpeg.probe(image_bytes)
@@ -48,6 +49,12 @@ def detect(src: str):
     #vid_writer=cv2.VideoWriter(result_path,cv2.VideoWriter_fourcc(*'mp4v'),30,(1280,720))
     #vid_writer=[None]*100000
     frames=[]
+    data={}
+
+    T1 = 0.7 #threshold1 y
+    T2_x1 = 0.3 #threshold2 xleft
+    T2_x2 =0.7 #threshold2 xright
+    T2_y = 0.9 #threshold2 y
 
     for frame_idx,batch in enumerate(dataset):
         path,im,im0s,vid_cap,s=batch
@@ -67,33 +74,83 @@ def detect(src: str):
         preds = model(im)
 
         preds = non_max_suppression(preds,conf_thres=0.25,iou_thres=0.45,classes=None,agnostic=False,max_det=1000)
+        #pred_txt=open('pred.txt','a')
+        #pred_txt.write(f'frame id : {frame_idx}\n')
 
         results=[]
+
+        """im0=im0s.copy()
+        p=Path(path)
+        txt_file_name, save_path= p.stem, str('save/'+p.name)
+        shape=im0s[i].shape if isinstance(im0s,list) else im0s.shape
+        pred[:,:4]=scale_boxes(im.shape[2:], preds[:, :4], shape).round()
+        result.append(Results(boxes=pred,orig_shape=shape[:2]))
+
+        annotator=Annotator(im0,line_width=2,example=str(names))
+
+        det=results[i].boxes
+        box_info=open(f'{txt_file_name}.txt','a')
+        box_info.write(f'{frame_idx}\n')
+
+        for d in reversed(det):
+            cls, conf = d.cls.squeeze(),d.cond.squeeze()
+            c=int(cls)
+            label=f'{model.names[c]}{conf:.2f}'
+            annotator.box_label(d.xyxy.squeeze(),label,color=colors(c,True))
+            box_info.write(f'{d.xyxy.squeeze().tolist()} {model.names[c]}\n')"""
 
         for i, pred in enumerate(preds):
             p, im0, _ = path,im0s.copy(),getattr(dataset,'frame',0)
             p = Path(p)
-            txt_file_name=p.stem
+            #txt_file_name=p.stem
+            json_file_path=f'{p.stem}.json'
             save_path=str('save/'+p.name)
+            #pred_txt.write(f'preds : {pred}\n{pred.shape} {len(pred)}\n')
             
             shape = im0s[i].shape if isinstance(im0s, list) else im0s.shape
             pred[:, :4] = scale_boxes(im.shape[2:], pred[:, :4], shape).round()
             results.append(Results(boxes=pred, orig_shape=shape[:2]))
+            
+            #pred_txt.write(f'pred : {pred}\n')
+            #pred_txt.write(f'results : {Results(boxes=pred, orig_shape=shape[:2])}\n')
+            #pred_txt.write(f'pred 0 :{pred[0,:]}\n')
+            #pred_txt.write(f'original : {im.shape}, target: {shape}\n')
+
 
             annotator=Annotator(im0,line_width=2,example=str(names))
 
             det=results[i].boxes
-            box_info=open(f'{txt_file_name}.txt','a')
-            box_info.write(f'{frame_idx}\n')
+            #box_info=open(f'{txt_file_name}.txt','a')
+            #box_json=open(f'{json_file_name}.json','a')
+            
+            #box_info.write(f'{frame_idx}\n')
+            i=0
+            
+            data[f'{frame_idx}']={}
             for d in reversed(det):
-                cls, conf = d.cls.squeeze(), d.conf.squeeze()
-                c=int(cls)
-                label = f'{model.names[c]}{conf:.2f}'
-                annotator.box_label(d.xyxy.squeeze(),label,color=colors(c,True))
-                box_info.write(f'{d.xyxy.squeeze().tolist()} {model.names[c]}\n')
+                box=d.xyxy.squeeze().tolist()
+                if box[3]>shape[0]*T1:
+                    warn=2
+                    if box[3]>shape[0]*T2_y and not(box[0]>shape[1]*T2_x2 or box[2]<shape[1]*T2_x1):
+                        warn=1
+                
+                    cls, conf = d.cls.squeeze(), d.conf.squeeze()
+                    c=int(cls)
+                    label = f'{model.names[c]}{conf:.2f}'
+                    #pred_txt.write(f'{d.xyxy.squeeze().tolist()}       {d.xyxy.squeeze().tolist()[3]}\n')
+                    annotator.box_label(d.xyxy.squeeze(),label,color=colors(4*(warn-1),True))
+                    data[f'{frame_idx}'][f'{i}']={"class":f'{model.names[c]}',"warning_lv":f'{warn}',"location":f'{int(((box[0]+box[2])//2)//(shape[1]//3))}'}
+                    
+                    #data[f'{frame_idx}']{"frame_idx":{i:{"class":cls,"warning_lv":warn,"location":(box[0]+box[2])%(shape[1]//3)}}}
+                    i=i+1
+            
+                
+                #annotator.box_label(d.xyxy.squeeze(),label,color=colors(c,True))
+                #box_info.write(f'{d.xyxy.squeeze().tolist()} {model.names[c]}\n')
 
         im0 = annotator.result()
         frames.append(im0)
+        
         
         ###
         #cv2.imwrite(str(increment_path(save_result)).with_suffix('.jpg'),im0)
@@ -123,6 +180,9 @@ def detect(src: str):
         #print(vid_writer[frame_idx])
         #vid_writer.write(im0)
     
+    with open(json_file_path,'w') as file:
+        json.dump(data,file,indent=4)
+
     vid_writer=cv2.VideoWriter(str(p.name),cv2.VideoWriter_fourcc(*'mp4v'),fps,(w,h))
     
     for i in range(len(frames)):
@@ -132,8 +192,8 @@ def detect(src: str):
 
     vid_writer.release()
 
-    h264_encoding(str(p.name),str("encode-"+p.name))
+    h264_encoding(str(p.name),dst)
     # return open(result_path, 'rb')
-    return str("encode-"+p.name)
+    return dst,json_file_path
 
 #detect()
