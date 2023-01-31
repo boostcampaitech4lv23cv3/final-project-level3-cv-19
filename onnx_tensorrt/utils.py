@@ -7,11 +7,32 @@ import matplotlib.pyplot as plt
 import os
 from subprocess import check_call
 import shlex
-
+import json
 
 def h264_encoding_withgpu(file_path: str, dst_file: str):
     cmd = f"ffmpeg -nostdin -y -i {file_path} -vcodec h264_nvenc -profile:v high -preset slow -pix_fmt yuv420p -src_range 1 -dst_range 1 -g 30 -bf 2 -an -movflags faststart {dst_file}"
     check_call(shlex.split(cmd), universal_newlines=True)
+
+
+class Colors:
+    # Ultralytics color palette https://ultralytics.com/
+    def __init__(self):
+        # hex = matplotlib.colors.TABLEAU_COLORS.values()
+        hexs = ('FF3838', 'FF9D97', 'FF701F', 'FFB21D', 'CFD231', '48F90A', '92CC17', '3DDB86', '1A9334', '00D4BB',
+                '2C99A8', '00C2FF', '344593', '6473FF', '0018EC', '8438FF', '520085', 'CB38FF', 'FF95C8', 'FF37C7')
+        self.palette = [self.hex2rgb(f'#{c}') for c in hexs]
+        self.n = len(self.palette)
+
+    def __call__(self, i, bgr=False):
+        c = self.palette[int(i) % self.n]
+        return (c[2], c[1], c[0]) if bgr else c
+
+    @staticmethod
+    def hex2rgb(h):  # rgb order (PIL)
+        return tuple(int(h[1 + i:1 + i + 2], 16) for i in (0, 2, 4))
+
+
+colors = Colors()  # create instance for 'from utils.plots import colors'
 
 
 class BaseEngine(object):
@@ -78,7 +99,8 @@ class BaseEngine(object):
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         outfilename_raw = 'detectraw.avi'
         out = cv2.VideoWriter(outfilename_raw,fourcc,fps,(width,height))
-        fps = 0
+        fpsout = 0
+        subtitles = {}
         import time
         while cap.isOpened():
             ret, frame = cap.read()
@@ -87,9 +109,9 @@ class BaseEngine(object):
             blob, ratio = preproc(frame, self.imgsz, self.mean, self.std)
             t1 = time.time()
             data = self.infer(blob)
-            fps = (fps + (1. / (time.time() - t1))) / 2
-            frame = cv2.putText(frame, "FPS:%d " %fps, (0, 40), cv2.FONT_HERSHEY_SIMPLEX, 1,
-                                (0, 0, 255), 2)
+            #fpsout = (fpsout + (1. / (time.time() - t1))) / 2
+            #frame = cv2.putText(frame, "FPS:%d " %fpsout, (0, 40), cv2.FONT_HERSHEY_SIMPLEX, 1,
+            #                    (0, 0, 255), 2)
             if end2end:
                 num, final_boxes, final_scores, final_cls_inds = data
                 final_boxes = np.reshape(final_boxes/ratio, (-1, 4))
@@ -98,11 +120,18 @@ class BaseEngine(object):
                 predictions = np.reshape(data, (1, -1, int(5+self.n_classes)))[0]
                 dets = self.postprocess(predictions,ratio)
 
-            if dets is not None:
-                final_boxes, final_scores, final_cls_inds = dets[:,
-                                                                :4], dets[:, 4], dets[:, 5]
-                frame = vis(frame, final_boxes, final_scores, final_cls_inds,
+            dets = getwarningdets(dets, width, height)
+
+            frame_idx = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
+
+            if dets is not None and dets.size > 0:
+                final_boxes, final_scores, final_cls_inds, final_warn_inds = dets[:,:4], dets[:, 4], dets[:, 5], dets[:,6]
+                frame = vis(frame, final_boxes, final_scores, final_cls_inds, final_warn_inds,
                                 conf=conf, class_names=self.class_names)
+                timestamp = cap.get(cv2.CAP_PROP_POS_MSEC)
+                for [x1,y1,x2,y2,score,cls,warn] in dets:
+                    subtitles[frame_idx] = {"class":self.class_names[int(cls)], "warning_lv":f'{int(warn)}', "location":f'{int(((x1+x2)//2)//(width//3))}'}
+
             #cv2.imshow('frame', frame)
             out.write(frame)
             if cv2.waitKey(25) & 0xFF == ord('q'):
@@ -112,8 +141,13 @@ class BaseEngine(object):
         cv2.destroyAllWindows()
         outfilename = 'detecth264.mp4'
         h264_encoding_withgpu(outfilename_raw, outfilename)
+        json_file_path ='subtitle.json' 
+        with open(json_file_path,'w') as file:
+            json.dump(subtitles,file,indent=4)
 
-        return outfilename        
+        predjson = []
+
+        return outfilename, predjson        
 
     def inference(self, img_path, conf=0.5, end2end=False):
         origin_img = cv2.imread(img_path)
@@ -125,12 +159,12 @@ class BaseEngine(object):
             dets = np.concatenate([final_boxes[:num[0]], np.array(final_scores)[:num[0]].reshape(-1, 1), np.array(final_cls_inds)[:num[0]].reshape(-1, 1)], axis=-1)
         else:
             predictions = np.reshape(data, (1, -1, int(5+self.n_classes)))[0]
-            dets = self.postprocess(predictions,ratio)
+            dets = self.postprocess(predictions,ratio,width,height)
 
         if dets is not None:
-            final_boxes, final_scores, final_cls_inds = dets[:,
-                                                             :4], dets[:, 4], dets[:, 5]
-            origin_img = vis(origin_img, final_boxes, final_scores, final_cls_inds,
+            final_boxes, final_scores, final_cls_inds, final_warn_inds = dets[:,
+                    :4], dets[:, 4], dets[:, 5], dets[:, 6]
+            origin_img = vis(origin_img, final_boxes, final_scores, final_cls_inds, final_warn_indx,
                              conf=conf, class_names=self.class_names)
         return origin_img
 
@@ -145,7 +179,7 @@ class BaseEngine(object):
         boxes_xyxy[:, 3] = boxes[:, 1] + boxes[:, 3] / 2.
         boxes_xyxy /= ratio
         dets = multiclass_nms(boxes_xyxy, scores, nms_thr=0.45, score_thr=0.1)
-        return dets
+        return warningdets
 
     def get_fps(self):
         import time
@@ -214,6 +248,28 @@ def multiclass_nms(boxes, scores, nms_thr, score_thr):
     return np.concatenate(final_dets, 0)
 
 
+def getwarningdets(dets,width,height):
+    warningdets = []
+    T1 = 0.7 #threshold1 y
+    T2_x1 = 0.3 #threshold2 xleft
+    T2_x2 =0.7 #threshold2 xright
+    T2_y = 0.9 #threshold2 y
+
+    for x1,y1,x2,y2,score,cls in dets.tolist():
+        box=[x1, y1, x2, y2]
+
+        if box[3]>height*T1: # y - close
+            warn=2
+            if box[3]>height*T2_y and not(box[0]>width*T2_x2 or box[2]<width*T2_x1): # x - center
+                warn=1
+
+            warningdets.append([x1,y1,x2,y2,score,cls,warn])
+
+    warningdets = np.array(warningdets)
+
+    return warningdets
+
+
 def preproc(image, input_size, mean, std, swap=(2, 0, 1)):
     if len(image.shape) == 3:
         padded_img = np.ones((input_size[0], input_size[1], 3)) * 114.0
@@ -255,10 +311,11 @@ def rainbow_fill(size=50):  # simpler way to generate rainbow color
 _COLORS = rainbow_fill(80).astype(np.float32).reshape(-1, 3)
 
 
-def vis(img, boxes, scores, cls_ids, conf=0.5, class_names=None):
+def vis(img, boxes, scores, cls_ids, warn_idxs, conf=0.5, class_names=None):
     for i in range(len(boxes)):
         box = boxes[i]
         cls_id = int(cls_ids[i])
+        warn_idx = int(warn_idxs[i])
         score = scores[i]
         if score < conf:
             continue
@@ -267,7 +324,8 @@ def vis(img, boxes, scores, cls_ids, conf=0.5, class_names=None):
         x1 = int(box[2])
         y1 = int(box[3])
 
-        color = (_COLORS[cls_id] * 255).astype(np.uint8).tolist()
+        color=colors(4*(warn_idx-1),True)
+        #color = (_COLORS[cls_id] * 255).astype(np.uint8).tolist()
         text = '{}:{:.1f}%'.format(class_names[cls_id], score * 100)
         txt_color = (0, 0, 0) if np.mean(_COLORS[cls_id]) > 0.5 else (255, 255, 255)
         font = cv2.FONT_HERSHEY_SIMPLEX
@@ -275,12 +333,12 @@ def vis(img, boxes, scores, cls_ids, conf=0.5, class_names=None):
         txt_size = cv2.getTextSize(text, font, 0.4, 1)[0]
         cv2.rectangle(img, (x0, y0), (x1, y1), color, 2)
 
-        txt_bk_color = (_COLORS[cls_id] * 255 * 0.7).astype(np.uint8).tolist()
+        #txt_bk_color = (_COLORS[cls_id] * 255 * 0.7).astype(np.uint8).tolist()
         cv2.rectangle(
             img,
             (x0, y0 + 1),
             (x0 + txt_size[0] + 1, y0 + int(1.5 * txt_size[1])),
-            txt_bk_color,
+            color,
             -1
         )
         cv2.putText(img, text, (x0, y0 + txt_size[1]), font, 0.4, txt_color, thickness=1)
