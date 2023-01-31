@@ -1,3 +1,8 @@
 [submodule "yolov8/ultralytics"]
 	path = yolov8/ultralytics
 	url = git@github.com:boostcampaitech4lv23cv3/ultralytics.git
+	branch = main
+[submodule "onnx_tensorrt/TensorRT-For-YOLO-Series"]
+	path = onnx_tensorrt/TensorRT-For-YOLO-Series
+	url = git@github.com:boostcampaitech4lv23cv3/TensorRT-For-YOLO-Series.git
+	branch = main
