@@ -6,3 +6,7 @@
 	path = onnx_tensorrt/TensorRT-For-YOLO-Series
 	url = git@github.com:boostcampaitech4lv23cv3/TensorRT-For-YOLO-Series.git
 	branch = main
+[submodule "app/substitute"]
+	path = app/substitute
+	url = git@github.com:TheLartians/substitute.git
+	branch = main
