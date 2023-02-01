@@ -8,6 +8,8 @@ import os
 from subprocess import check_call
 import shlex
 import json
+import math
+
 
 def h264_encoding_withgpu(file_path: str, dst_file: str):
     cmd = f"ffmpeg -nostdin -y -i {file_path} -vcodec h264_nvenc -profile:v high -preset slow -pix_fmt yuv420p -src_range 1 -dst_range 1 -g 30 -bf 2 -an -movflags faststart {dst_file}"
@@ -40,10 +42,17 @@ class BaseEngine(object):
         self.mean = None
         self.std = None
         self.n_classes = 29
-        self.class_names = ['bicycle','bus','car','carrier','cat','dog','motorcycle','movable_signage','person',
+        self.class_names_en = ['bicycle','bus','car','carrier','cat','dog','motorcycle','movable_signage','person',
                 'scooter','stroller','truck','wheelchair','barricade','bench','bollard','chair','fire_hydrant',
                 'kiosk','parking_meter','pole','potted_plant','power_controller','stop','table','traffic_light',
                 'traffic_light_controller','traffic_sign','tree_trunk']
+
+        self.class_names_kr = ['자전거','버스','자동차','손수레','고양이','개','오토바이','간판','사람',
+                '스쿠터','유모차','트럭','휠체어','바리케이드','벤치','볼라드','의자','소화전',
+                '키오스크','주차요금정산기','기둥','화분','전력제어함','정류장','탁자','신호등',
+                '신호등제어기','교통표지판','가로수']
+        self.location_names = ['왼쪽','중앙','오른쪽']
+        self.warning_names = ['', '가까이','']
 
         logger = trt.Logger(trt.Logger.WARNING)
         logger.min_severity = trt.Logger.Severity.ERROR
@@ -118,17 +127,20 @@ class BaseEngine(object):
             dets = getwarningdets(dets, width, height)
 
             frame_idx = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
-            subtitles[f'{frame_idx}'] = {}
 
             if dets is not None and dets.size > 0:
+                subtitles[f'{frame_idx}'] = {}
                 final_boxes, final_scores, final_cls_inds, final_warn_inds = dets[:,:4], dets[:, 4], dets[:, 5], dets[:,6]
                 frame = vis(frame, final_boxes, final_scores, final_cls_inds, final_warn_inds,
-                                conf=conf, class_names=self.class_names)
+                                conf=conf, class_names=self.class_names_en)
                 timestamp = cap.get(cv2.CAP_PROP_POS_MSEC)
 
                 for i, [x1,y1,x2,y2,score,cls,warn] in enumerate(dets):
                     print(f'{file_name}: Frame:{frame_idx} ObjIndex:{i} Time:{timestamp:.2f}--Class:{int(cls)} Warning:{int(warn)}')
-                    subtitles[f'{frame_idx}'][f'{i}'] = {"class":self.class_names[int(cls)], "warning_lv":f'{int(warn)}', "location":f'{int(((x1+x2)//2)//(width//3))}'}
+                    warning_name = self.warning_names[int(warn)]
+                    location_name = self.location_names[int(((x1+x2)//2)//(width//3))]
+                    subtitles[f'{frame_idx}'][f'{i}'] = {"class":self.class_names_kr[int(cls)], 
+                            "location":f'{location_name}', "warning_lv":f'{warning_name}'} 
 
             #cv2.imshow('frame', frame)
             out.write(frame)
@@ -139,8 +151,8 @@ class BaseEngine(object):
         cv2.destroyAllWindows()
         outfilename = 'detecth264.mp4'
         h264_encoding_withgpu(outfilename_raw, outfilename)
-        json_file_path ='subtitle.json' 
-        with open(json_file_path,'w') as file:
+        json_file_path = file_name[:-4]+'-subtitle.json' 
+        with open(json_file_path,'w',encoding='UTF-8') as file:
             json.dump(subtitles,file,indent=4)
         json_obj = json.dumps(subtitles, ensure_ascii=False,indent=None,sort_keys=True)
 
@@ -162,7 +174,7 @@ class BaseEngine(object):
             final_boxes, final_scores, final_cls_inds, final_warn_inds = dets[:,
                     :4], dets[:, 4], dets[:, 5], dets[:, 6]
             origin_img = vis(origin_img, final_boxes, final_scores, final_cls_inds, final_warn_indx,
-                             conf=conf, class_names=self.class_names)
+                             conf=conf, class_names=self.class_names_en)
         return origin_img
 
     @staticmethod
@@ -257,7 +269,12 @@ def getwarningdets(dets,width,height):
 
         if box[3]>height*T1: # y - close
             warn=2
-            if box[3]>height*T2_y and not(box[0]>width*T2_x2 or box[2]<width*T2_x1): # x - center
+            d_x, d_y = (box[0] + box[2]) / 2 - width / 2, box[3] - height
+            dist = math.sqrt(pow(d_x,2)+pow(d_y,2))
+            angle = 90 - math.atan2(-d_y,d_x)*180/math.pi
+            
+            if dist<height*0.1 or (height*0.1<dist<height*0.2 and -45<=angle<=45) or -15<=angle<=15:
+            #if box[3]>height*T2_y and not(box[0]>width*T2_x2 or box[2]<width*T2_x1): # x - center
                 warn=1
 
             warningdets.append([x1,y1,x2,y2,score,cls,warn])
