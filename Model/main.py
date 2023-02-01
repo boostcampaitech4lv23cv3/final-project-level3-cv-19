@@ -1,9 +1,9 @@
-from fastapi import FastAPI, UploadFile, File, Request, Response
-import uvicorn
 from typing import List
+from fastapi import FastAPI, UploadFile, File, Request, Response
 from detector import detect
 
 app = FastAPI()
+
 
 @app.post("/")
 async def rsp(request: Request, files: List[UploadFile] = File(...)):
@@ -23,7 +23,3 @@ async def rsp(request: Request, files: List[UploadFile] = File(...)):
         #    result_json_b = f.read()
         return Response(content=result_b, media_type="video/mp4", headers={"user_id": user_id,"filename": file_name})
         #return Response(content=result_b, data=result_json, media_type="video/mp4", headers={"user_id": user_id,"filename": file_name})
-
-
-if __name__ == "__main__":
-    uvicorn.run("gpu_server:app", host="0.0.0.0", port=30002, workers=4, reload=True)
