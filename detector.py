@@ -5,6 +5,8 @@ import torch
 
 import sys
 import json
+import time
+import math
 
 import numpy as np
 from pathlib import Path
@@ -35,6 +37,8 @@ def detect(src: str,dst: str):
     save_batch="save/batch"
     save_result="save/result/img"
 
+    start=time.time()
+
     #src = _transform_image(image_bytes)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = AutoBackend(weights='yolov8n_custom.pt',device=device,dnn=False,fp16=False)
@@ -51,10 +55,19 @@ def detect(src: str,dst: str):
     frames=[]
     data={}
 
+    #th_x=[False]*10
+    #th_y=[False]*10
+
     T1 = 0.7 #threshold1 y
     T2_x1 = 0.3 #threshold2 xleft
     T2_x2 =0.7 #threshold2 xright
     T2_y = 0.9 #threshold2 y
+
+    #Td1, Td2 = 0.1, 0.2
+    #Ta1, Ta2 = 0.1, 0.2
+    
+
+    time_record1=time.time()
 
     for frame_idx,batch in enumerate(dataset):
         path,im,im0s,vid_cap,s=batch
@@ -127,12 +140,24 @@ def detect(src: str,dst: str):
             i=0
             
             data[f'{frame_idx}']={}
+            with open(f'dist_degree_{p.stem}.txt','a') as mathfile:
+                mathfile.write(f'{frame_idx}:\n')
             for d in reversed(det):
                 box=d.xyxy.squeeze().tolist()
                 if box[3]>shape[0]*T1:
                     warn=2
-                    if box[3]>shape[0]*T2_y and not(box[0]>shape[1]*T2_x2 or box[2]<shape[1]*T2_x1):
+                    #if box[3]>shape[0]*T2_y and not(box[0]>shape[1]*T2_x2 or box[2]<shape[1]*T2_x1):
+                    #    warn=1
+
+                    d_x, d_y = (box[0] + box[2]) / 2 - shape[1] / 2, box[3] - shape[0]
+                    dist = math.sqrt(pow(d_x,2)+pow(d_y,2))
+                    angle = 90 - math.atan2(-d_y,d_x)*180/math.pi
+                    with open(f'dist_degree_{p.stem}.txt','a') as mathfile:
+                        mathfile.write(f'{i} {dist:.1f} {angle:.1f} {d.xyxy.squeeze().tolist()}\n')
+                    if dist<shape[0]*0.1 or (shape[0]*0.1<dist<shape[0]*0.2 and -45<=angle<=45) or -15<=angle<=15:
                         warn=1
+
+
                 
                     cls, conf = d.cls.squeeze(), d.conf.squeeze()
                     c=int(cls)
@@ -151,6 +176,7 @@ def detect(src: str,dst: str):
         im0 = annotator.result()
         frames.append(im0)
         
+        time_record2=time.time()
         
         ###
         #cv2.imwrite(str(increment_path(save_result)).with_suffix('.jpg'),im0)
@@ -182,6 +208,7 @@ def detect(src: str,dst: str):
     
     with open(json_file_path,'w') as file:
         json.dump(data,file,indent=4)
+    json_obj=json.dumps(data,ensure_ascii=False,indent=None,sort_keys=True)
 
     vid_writer=cv2.VideoWriter(str(p.name),cv2.VideoWriter_fourcc(*'mp4v'),fps,(w,h))
     
@@ -194,6 +221,9 @@ def detect(src: str,dst: str):
 
     h264_encoding(str(p.name),dst)
     # return open(result_path, 'rb')
-    return dst,json_file_path
+
+    with open(f'{p.stem}.txt','w') as file:
+        file.write(f'model set: {time_record1-start:.4f} sec, inference:{time_record2-time_record1:.4f} sec, write & encoding:{time.time()-time_record2:.4f} sec\n')
+    return dst,json_obj
 
 #detect()
