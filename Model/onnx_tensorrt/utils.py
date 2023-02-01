@@ -8,6 +8,8 @@ import os
 from subprocess import check_call
 import shlex
 import json
+import math
+
 
 def h264_encoding_withgpu(file_path: str, dst_file: str):
     cmd = f"ffmpeg -nostdin -y -i {file_path} -vcodec h264_nvenc -profile:v high -preset slow -pix_fmt yuv420p -src_range 1 -dst_range 1 -g 30 -bf 2 -an -movflags faststart {dst_file}"
@@ -118,9 +120,9 @@ class BaseEngine(object):
             dets = getwarningdets(dets, width, height)
 
             frame_idx = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
-            subtitles[f'{frame_idx}'] = {}
 
             if dets is not None and dets.size > 0:
+                subtitles[f'{frame_idx}'] = {}
                 final_boxes, final_scores, final_cls_inds, final_warn_inds = dets[:,:4], dets[:, 4], dets[:, 5], dets[:,6]
                 frame = vis(frame, final_boxes, final_scores, final_cls_inds, final_warn_inds,
                                 conf=conf, class_names=self.class_names)
@@ -139,7 +141,7 @@ class BaseEngine(object):
         cv2.destroyAllWindows()
         outfilename = 'detecth264.mp4'
         h264_encoding_withgpu(outfilename_raw, outfilename)
-        json_file_path ='subtitle.json' 
+        json_file_path = file_name[:-4]+'-subtitle.json' 
         with open(json_file_path,'w') as file:
             json.dump(subtitles,file,indent=4)
         json_obj = json.dumps(subtitles, ensure_ascii=False,indent=None,sort_keys=True)
@@ -257,7 +259,12 @@ def getwarningdets(dets,width,height):
 
         if box[3]>height*T1: # y - close
             warn=2
-            if box[3]>height*T2_y and not(box[0]>width*T2_x2 or box[2]<width*T2_x1): # x - center
+            d_x, d_y = (box[0] + box[2]) / 2 - width / 2, box[3] - height
+            dist = math.sqrt(pow(d_x,2)+pow(d_y,2))
+            angle = 90 - math.atan2(-d_y,d_x)*180/math.pi
+            
+            if dist<height*0.1 or (height*0.1<dist<height*0.2 and -45<=angle<=45) or -15<=angle<=15:
+            #if box[3]>height*T2_y and not(box[0]>width*T2_x2 or box[2]<width*T2_x1): # x - center
                 warn=1
 
             warningdets.append([x1,y1,x2,y2,score,cls,warn])
