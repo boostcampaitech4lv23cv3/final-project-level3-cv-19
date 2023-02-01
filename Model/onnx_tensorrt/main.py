@@ -16,7 +16,6 @@ async def predict(request: Request, files: List[UploadFile] = File(...)):
 
         pred = BaseEngine(engine_path='./onnx_tensorrt/yolov8n_custom.trt')
         result, json_obj = pred.detect_video(file_name=file_name, conf=0.1, end2end=True)
-        
         result_b = None
         with open(result, 'rb') as f:
             result_b = f.read()
