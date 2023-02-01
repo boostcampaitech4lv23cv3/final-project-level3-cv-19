@@ -4,6 +4,7 @@ import re
 import math
 import shlex
 from subprocess import check_call, PIPE, Popen
+from torch import cuda
 
 re_metadata = re.compile('Duration: (\d{2}):(\d{2}):(\d{2})\.\d+,.*\n.* (\d+(\.\d+)?) fps')
 
@@ -96,7 +97,13 @@ def concatenate(file_path: str, dst_file: str):
 
 
 def h264_encoding(file_path: str, dst_file: str):
-    cmd = f"ffmpeg -i {file_path} -vcodec libx264 -profile:v high -preset slow -pix_fmt yuv420p -src_range 1 -dst_range 1 -crf 18 -g 30 -bf 2 -an -movflags faststart {dst_file}"
+    hwaccel_cmd = ""
+    if cuda.is_available():
+        hwaccel_cmd = " -hwaccel cuvid -c:v h264_cuvid"
+        vcodec = "h264_nvenc"
+    else:
+        vcodec = "libx264"
+    cmd = f"ffmpeg{hwaccel_cmd} -i {file_path} -c:v {vcodec} -profile:v high -preset slow -pix_fmt yuv420p -src_range 1 -dst_range 1 -crf 18 -g 30 -bf 2 -an -movflags faststart {dst_file}"
     check_call(shlex.split(cmd), universal_newlines=True)
 
 
@@ -119,5 +126,12 @@ def video_preprocessing(file_path: str, dst_file: str, resize_h=None, tgt_framer
         print("Something wrong in parameter 'tgt_framerate', please check again")
         raise TypeError
 
-    cmd = f"ffmpeg -i {file_path}{resizing_cmd} -an -movflags faststart{framerate_chg_cmd} -y {dst_file}"
+    hwaccel_cmd = ""
+    if cuda.is_available():
+        hwaccel_cmd = " -hwaccel cuvid -c:v h264_cuvid"
+        vcodec = "h264_nvenc"
+    else:
+        vcodec = "libx264"
+    cmd = f"ffmpeg{hwaccel_cmd} -i {file_path}{resizing_cmd} -c:v {vcodec} -an -movflags faststart{framerate_chg_cmd} -y {dst_file}"
     check_call(shlex.split(cmd), universal_newlines=True)
+

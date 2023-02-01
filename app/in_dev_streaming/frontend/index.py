@@ -1,3 +1,7 @@
+"""
+This Codes Temporarily Used for Develop Convenient Purpose.
+Not Used from 01Feb2023 because of Server Integration.
+"""
 import os
 import streamlit as st
 import cv2

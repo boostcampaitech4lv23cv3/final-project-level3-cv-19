@@ -1,6 +1,7 @@
-import pathlib
 import os
-from app.main import dir_func
+import pathlib
+import json
+from app.utils import dir_func
 
 PRJ_ROOT_PATH = pathlib.Path(__file__).parent.parent.absolute()
 APP_PATH = os.path.join(PRJ_ROOT_PATH, "app")
@@ -11,42 +12,43 @@ def second_to_timecode(x: float) -> str:
     minute, x = divmod(x, 60)
     second, x = divmod(x, 1)
     millisecond = int(x * 1000.)
-    return f"{hour:.2d}:{minute:.2d}:{second:.2d},{millisecond:.3d}"
+    return f"{int(hour):02d}:{int(minute):02d}:{int(second):02d},{int(millisecond):03d}"
 
 
-def json2srt(src: dict, fps=10, session_id=None, dst_fn="subtitle", save: bool = False):
+def json2srt(session_id: str, json_str: str, fps=10, dst_fn="subtitle", save: bool = True):
     frame_time_in_sec = 1/fps
     ts_start = .0
     ts_end = ts_start + frame_time_in_sec
     subtitle_arr = []
+    js_dict = json.loads(json_str)
+    for frame_no, frame_items in sorted(js_dict.items(), key=lambda x: x[0], reverse=False):
+        if len(frame_items):
+            seq_line = f"{int(frame_no)}"
+            time_line = f"{second_to_timecode(ts_start)} --> {second_to_timecode(ts_end)}"
+            caption_line = "\n".join([f"IDX: {obj_id} // WARNING: {obj_data['warning_lv']} "
+                                      f"// LOCATION: {obj_data['location']} // CLASS: {obj_data['class']}"
+                                      f"" for obj_id, obj_data in sorted(frame_items.items(), key=lambda x: x[0], reverse=False)])
+            break_line = ""
+            subtitle_arr.append("\n".join([seq_line, time_line, caption_line, break_line]))
 
-    for frame_no, frame_items in sorted(src.items(), key=lambda x: x[0], reverse=False):
-        seq_line = f"{frame_no+1}"
-        time_line = f"{second_to_timecode(ts_start)} --> {second_to_timecode(ts_end)}"
-        caption_line = "\n".join([f"IDX: {obj_id} // WARNING: {obj_data['warning_lv']} // LOCATION: {obj_data['location']} // CLASS: {obj_data['class']}" for obj_id, obj_data in sorted(frame_items.items(), key=lambda x: x[0], reverse=False)])
-        break_line = "\n"
-        subtitle_arr.append("\n".join([seq_line, time_line, caption_line, break_line]))
-
-        ts_start = ts_end
-        ts_end += frame_time_in_sec
+            ts_start = ts_end
+            ts_end += frame_time_in_sec
 
     parsed_str = "\n".join(subtitle_arr)
     if save:
-        save_path = os.path.join(APP_PATH, "srt", session_id, dst_fn)
+        save_path = os.path.join(APP_PATH, "srt", session_id)
         dir_func(save_path, rmtree=False, mkdir=True)
-        with open(save_path, 'w+', encoding='utf-8') as f:
+        with open(os.path.join(save_path, dst_fn+".srt"), 'w+', encoding='utf-8') as f:
             f.writelines(parsed_str)
     return parsed_str
 
 
-def get_html(session_id: str, srt_fname: str = "subtitle", sub_json_input=None) -> str:
-    srt_path = os.path.join(APP_PATH, "srt", session_id, srt_fname+".srt")
+def get_html(session_id: str, srt_fname: str = "subtitle") -> tuple:
     video_path = os.path.join(APP_PATH, "result", session_id)
-    if sub_json_input is not None:
-        with open(srt_path, 'w+', encoding='utf-8') as f:
-            f.writelines(json2srt(sub_json_input))
     html_path = os.path.join(APP_PATH, "html", session_id)
-    dir_func(html_path, rmtree=False, mkdir=True)
+    srt_path = os.path.join(APP_PATH, "srt", session_id)
+    srt_fp = os.path.join(srt_path, srt_fname+".srt")
+    dir_func(html_path, rmtree=True, mkdir=True)
     html_str = f"""
 <!DOCTYPE html>
 <html>
@@ -57,15 +59,16 @@ def get_html(session_id: str, srt_fname: str = "subtitle", sub_json_input=None) 
 </head>
 <body>
   <video id="my-video" class="video-js vjs-sublime-skin" controls preload="auto" width="640">
-    <source src="{os.path.join(video_path, os.listdir(video_path)[0])}" type='video/mp4'>
-    <track src="{srt_path}" kind="subtitles" srclang="ko" label="한국어">
+    <source src="{os.path.join(video_path, os.listdir(video_path)[0])}" type"video/mp4">
+    <track src="{srt_fp}" kind="subtitles" srclang="ko" label="한국어">
   </video>
   <script>
-    var player = videojs('my-video');
+    var player = videojs("my-video");
   </script>
 </body>
 </html>
     """
-    with open(html_path+"subs.html", 'w+', encoding='utf-8') as f:
+    html_fp = os.path.join(html_path, "subs.html")
+    with open(html_fp, 'w+', encoding='utf-8') as f:
         f.writelines(html_str)
-    return html_path+"subs.html"
+    return html_fp, html_str

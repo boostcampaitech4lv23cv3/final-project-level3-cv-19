@@ -1,11 +1,17 @@
+"""
+Commented Codes are No More Used from 01Feb2023 because of Server Integration.
+"""
 import os
-from pathlib import Path
-import shutil
-from app.ffmpeg_func import split_cut, split_segment, concatenate
-# import app.substitute as subs
-import streamlit.components.v1 as components
-import requests
+import sys
+import logging
 import streamlit as st
+import streamlit.components.v1 as components
+
+from app.utils import dir_func
+from app.ffmpeg_func import video_preprocessing
+from app.subtitle_func import get_html, json2srt
+from Model.detector import detect
+
 
 try:
     from streamlit.runtime.runtime import SessionInfo
@@ -33,84 +39,62 @@ except ModuleNotFoundError:
                 get_report_ctx as get_script_run_ctx,
             )
 
-st.set_page_config(layout="centered")
-SERVER_URL = "http://localhost:30002/results"
-
-
-def dir_func(path: str, rmtree: bool = True, mkdir: bool = True):
-    if rmtree:
-        shutil.rmtree(path, ignore_errors=True)
-    if mkdir:
-        if not os.path.exists(path):
-            os.makedirs(path)
-
 
 def get_session_id() -> str:
     ctx = get_script_run_ctx()
     if ctx is None:
         raise Exception("Failed to get the thread context")
-
     return ctx.session_id
+
+
+SERVER_URL = "http://localhost:30002/results"
+TARGET_FPS = 15
+user_session = get_session_id()
+st.set_page_config(layout="centered")
+
+# PATH SETTINGS
+upload_path = f"app/uploaded/{user_session}/"
+dst_path = f"app/result/{user_session}/"
+html_path = f"app/html/{user_session}/"
+tmp_path = f"app/tmp/{user_session}/"
 
 
 def main():
     st.title("보행 시 장애물 안내 서비스")
     st.write(f"Session ID : {user_session}")
-    if 'url' not in st.session_state:
-        st.session_state.url = SERVER_URL
-    URL_DISPLAY = st.empty()
-    URL_DISPLAY.write(f'Current GPU Server URL is {st.session_state.url}')
-    new_url = st.text_input("Put Servicing URL with 'http://' and Press ENTER", )
-    if new_url != st.session_state.url:
-        st.session_state.url = new_url
-        URL_DISPLAY.write(f'Current GPU Server URL is {st.session_state.url}')
+
     uploaded_file = st.file_uploader("동영상을 선택하세요", type=["mp4"])
+    placeholder = st.empty()
 
     if uploaded_file:
+        # Save Uploaded File
+        dir_func(upload_path, rmtree=True, mkdir=True)
         fn = uploaded_file.name
-        dir_func(upload_path, rmtree=False, mkdir=True)
         save_filepath = os.path.join(upload_path, fn)
-        placeholder = st.empty()
         with open(save_filepath, 'wb') as f:
             f.write(uploaded_file.getbuffer())
             placeholder.success(f"파일이 서버에 저장되었습니다.")
-        # split_list = sorted(split_cut(upload_path, 2))
-        dir_func(tmp_path, rmtree=False, mkdir=True)
-        dir_func(tmp_rcv_path, rmtree=False, mkdir=True)
-        split_list = sorted(split_segment(save_filepath, 2))
-        stat_code_checker = [False] * len(split_list)
-        for idx, file in enumerate(split_list):
-            placeholder.success(f"GPU 서버로 파일 전송, 파일 처리 중 {(idx+1) / len(split_list) * 100:.1f} % at {st.session_state.url}")
-            files = [("files", open(os.path.join(tmp_path, file), 'rb'))]
-            headers = {"filename": file, "user_id": user_session}
-            response = requests.post(st.session_state.url, files=files, headers=headers)
-            if response.status_code == 200:
-                stat_code_checker[idx] = True
-                head = response.headers
-                fp = os.path.join(str(Path(tmp_rcv_path).parent), head.get('user_id'), head.get('filename'))
-                print(fp)
-                with open(fp, 'wb') as f:
-                    f.write(response.content)
-        placeholder.empty()
-        if all(stat_code_checker):
-            dir_func(dst_path, rmtree=False, mkdir=True)
-            rslt_file = os.path.join(dst_path, "result.mp4")
-            concatenate(tmp_rcv_path, rslt_file)
-            st.video(open(rslt_file, 'rb').read(), format="video/mp4")
-            subtitle_html = components.html(html_path+"")
-            iframe = components.iframe(subtitle_html)
-            dir_func(tmp_path, rmtree=True, mkdir=False)
-            dir_func(upload_path, rmtree=True, mkdir=False)
-            dir_func(tmp_rcv_path, rmtree=True, mkdir=False)
-        else:
-            placeholder.warning("파일 송수신에 실패했습니다. 터미널 로그를 참조하세요")
 
+        dir_func(tmp_path, rmtree=True, mkdir=True)
+        dir_func(dst_path, rmtree=True, mkdir=True)
+        preprocessed_file = os.path.join(tmp_path, "preprocessed.mp4")
+        result_file = os.path.join(dst_path, "result.mp4")
 
-user_session = get_session_id()
-tmp_path = f"app/tmp/{user_session}/"
-upload_path = f"app/uploaded/{user_session}/"
-tmp_rcv_path = f"app/tmp_rcv/{user_session}/"
-dst_path = f"app/result/{user_session}/"
-html_path = f"app/html/{user_session}/"
+        try:
+            video_preprocessing(save_filepath, preprocessed_file, resize_h=640, tgt_framerate=TARGET_FPS)
+            result_file, frame_json = detect(preprocessed_file, user_session, result_file)
+            json2srt(session_id=user_session, json_str=frame_json, fps=TARGET_FPS, save=True)
+            st.video(open(result_file, 'rb').read(), format="video/mp4")
+            # TODO
+            # components.html(get_html(session_id=user_session)[1], width=700)
+
+        except Exception as e:
+            placeholder.warning(f"파일 처리 중 요류가 발생하였습니다.\n{e.with_traceback(sys.exc_info()[2])}")
+            logging.exception(str(e), exc_info=True)
+
+        finally:
+            dir_func(upload_path, rmtree=False, mkdir=False)
+            dir_func(tmp_path, rmtree=False, mkdir=False)
+
 
 main()

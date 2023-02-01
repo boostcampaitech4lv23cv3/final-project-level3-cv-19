@@ -8,3 +8,4 @@ starlette
 pydantic==1.10.4
 pillow
 opencv-python
+ultralytics==8.0.25
