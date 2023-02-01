@@ -2,7 +2,8 @@ import os
 from pathlib import Path
 import shutil
 from app.ffmpeg_func import split_cut, split_segment, concatenate
-
+# import app.substitute as subs
+import streamlit.components.v1 as components
 import requests
 import streamlit as st
 
@@ -96,6 +97,8 @@ def main():
             rslt_file = os.path.join(dst_path, "result.mp4")
             concatenate(tmp_rcv_path, rslt_file)
             st.video(open(rslt_file, 'rb').read(), format="video/mp4")
+            subtitle_html = components.html(html_path+"")
+            iframe = components.iframe(subtitle_html)
             dir_func(tmp_path, rmtree=True, mkdir=False)
             dir_func(upload_path, rmtree=True, mkdir=False)
             dir_func(tmp_rcv_path, rmtree=True, mkdir=False)
@@ -108,5 +111,6 @@ tmp_path = f"app/tmp/{user_session}/"
 upload_path = f"app/uploaded/{user_session}/"
 tmp_rcv_path = f"app/tmp_rcv/{user_session}/"
 dst_path = f"app/result/{user_session}/"
+html_path = f"app/html/{user_session}/"
 
 main()
