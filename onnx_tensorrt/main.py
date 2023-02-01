@@ -15,13 +15,12 @@ async def predict(request: Request, files: List[UploadFile] = File(...)):
             f.write(video_bytes)
 
         pred = BaseEngine(engine_path='./onnx_tensorrt/yolov8n_custom.trt')
-        result, result_json = pred.detect_video(file_name=file_name, conf=0.1, end2end=True)
-
+        result, json_obj = pred.detect_video(file_name=file_name, conf=0.1, end2end=True)
+        
         result_b = None
         with open(result, 'rb') as f:
             result_b = f.read()
         
-        return Response(content=result_b, media_type="video/mp4", 
-                                            headers={"filename": file_name, "user_id": user_id})#,
-                                            #result_json})
+        return Response(content=result_b, data=json_obj, media_type="video/mp4", 
+                                            headers={"filename": file_name, "user_id": user_id})
 

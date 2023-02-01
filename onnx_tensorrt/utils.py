@@ -123,14 +123,17 @@ class BaseEngine(object):
             dets = getwarningdets(dets, width, height)
 
             frame_idx = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
+            subtitles[f'{frame_idx}'] = {}
 
             if dets is not None and dets.size > 0:
                 final_boxes, final_scores, final_cls_inds, final_warn_inds = dets[:,:4], dets[:, 4], dets[:, 5], dets[:,6]
                 frame = vis(frame, final_boxes, final_scores, final_cls_inds, final_warn_inds,
                                 conf=conf, class_names=self.class_names)
                 timestamp = cap.get(cv2.CAP_PROP_POS_MSEC)
-                for [x1,y1,x2,y2,score,cls,warn] in dets:
-                    subtitles[frame_idx] = {"class":self.class_names[int(cls)], "warning_lv":f'{int(warn)}', "location":f'{int(((x1+x2)//2)//(width//3))}'}
+
+                for i, [x1,y1,x2,y2,score,cls,warn] in enumerate(dets):
+                    print(f'{file_name}: Frame:{frame_idx} ObjIndex:{i} Time:{timestamp:.2f}--Class:{int(cls)} Warning:{int(warn)}')
+                    subtitles[f'{frame_idx}'][f'{i}'] = {"class":self.class_names[int(cls)], "warning_lv":f'{int(warn)}', "location":f'{int(((x1+x2)//2)//(width//3))}'}
 
             #cv2.imshow('frame', frame)
             out.write(frame)
@@ -144,10 +147,9 @@ class BaseEngine(object):
         json_file_path ='subtitle.json' 
         with open(json_file_path,'w') as file:
             json.dump(subtitles,file,indent=4)
+        json_obj = json.dumps(subtitles, ensure_ascii=False,indent=None,sort_keys=True)
 
-        predjson = []
-
-        return outfilename, predjson        
+        return outfilename, json_obj        
 
     def inference(self, img_path, conf=0.5, end2end=False):
         origin_img = cv2.imread(img_path)
