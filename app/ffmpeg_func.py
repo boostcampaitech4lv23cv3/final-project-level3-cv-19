@@ -5,7 +5,6 @@ import math
 import shlex
 import pynvml
 from subprocess import check_call, PIPE, Popen
-from torch import cuda
 
 re_metadata = re.compile('Duration: (\d{2}):(\d{2}):(\d{2})\.\d+,.*\n.* (\d+(\.\d+)?) fps')
 pynvml.nvmlInit()
