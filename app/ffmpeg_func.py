@@ -3,9 +3,13 @@ import pathlib
 import re
 import math
 import shlex
+import pynvml
 from subprocess import check_call, PIPE, Popen
 
 re_metadata = re.compile('Duration: (\d{2}):(\d{2}):(\d{2})\.\d+,.*\n.* (\d+(\.\d+)?) fps')
+pynvml.nvmlInit()
+device_count = 0
+# device_count = pynvml.nvmlDeviceGetCount()  # GPU HW Accel이 가능하면 주석 해제
 
 
 def get_metadata(filename):
@@ -96,7 +100,8 @@ def concatenate(file_path: str, dst_file: str):
 
 
 def h264_encoding(file_path: str, dst_file: str):
-    cmd = f"ffmpeg -i {file_path} -vcodec libx264 -profile:v high -preset slow -pix_fmt yuv420p -src_range 1 -dst_range 1 -crf 18 -g 30 -bf 2 -an -movflags faststart {dst_file}"
+    vcodec = "h264_nvenc" if device_count != 0 else "libx264"
+    cmd = f"ffmpeg -nostdin -y -i {file_path} -vcodec {vcodec} -profile:v high -preset slow -pix_fmt yuv420p -src_range 1 -dst_range 1 -g 30 -bf 2 -an -movflags faststart {dst_file}"
     check_call(shlex.split(cmd), universal_newlines=True)
 
 
@@ -109,6 +114,8 @@ def video_preprocessing(file_path: str, dst_file: str, resize_h=None, tgt_framer
 
     if isinstance(resize_h, int):
         resizing_cmd = f" -vf scale=-1:{resize_h}"
+        if deviceCount != 0:
+            resizing_cmd = f" -vf scale_cuda=-1:{resize_h}"
     elif resize_h is not None:
         print("Something wrong in parameter 'resize_h', please check again")
         raise TypeError
@@ -118,6 +125,6 @@ def video_preprocessing(file_path: str, dst_file: str, resize_h=None, tgt_framer
     elif tgt_framerate is not None:
         print("Something wrong in parameter 'tgt_framerate', please check again")
         raise TypeError
-
-    cmd = f"ffmpeg -i {file_path}{resizing_cmd} -an -movflags faststart{framerate_chg_cmd} -y {dst_file}"
+    vcodec = "h264_nvenc" if device_count != 0 else "libx264"
+    cmd = f"ffmpeg -nostdin -y -i {file_path}{resizing_cmd} -vcodec {vcodec} -an -movflags faststart{framerate_chg_cmd} -y {dst_file}"
     check_call(shlex.split(cmd), universal_newlines=True)
