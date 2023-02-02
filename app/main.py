@@ -83,7 +83,7 @@ def main():
         dir_func(dst_path, rmtree=True, mkdir=True)
         preprocessed_file = os.path.join(tmp_path, "preprocessed.mp4")
         resultvideo_file = os.path.join(dst_path, "resultvideo.mp4")
-        resultvideoaudio_file = os.path.join(dst_path, "resultvideoaudio.mp4")
+        resultvideoaudio_file = os.path.join(dst_path, "result.mp4")
 
         try:
             video_preprocessing(save_filepath, preprocessed_file, resize_h=640, tgt_framerate=TARGET_FPS)
