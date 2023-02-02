@@ -11,7 +11,6 @@ from app.utils import dir_func
 from app.ffmpeg_func import video_preprocessing
 from app.subtitle_func import get_html, json2srt
 from Model.detector import detect
-from Model.onnx_tensorrt.utils import BaseEngine
 
 try:
     from streamlit.runtime.runtime import SessionInfo
@@ -86,7 +85,8 @@ def main():
             if 1: # Pytorch
                 result_file, frame_json = detect(preprocessed_file, user_session, result_file)
             else: # TensorRT
-                pred = BaseEngine(engine_path='.Model/onnx_tensorrt/yolov8n.trt')
+                from Model.onnx_tensorrt.utils import BaseEngine
+                pred = BaseEngine(engine_path='./Model/onnx_tensorrt/yolov8n_custom.trt')
                 result_file, frame_json = pred.detect_video(file_name=preprocessed_file, user_session=user_session, conf=0.1, end2end=True)
 
             json2srt(session_id=user_session, json_str=frame_json, fps=TARGET_FPS, save=True)
