@@ -95,7 +95,7 @@ class BaseEngine(object):
         data = [out['host'] for out in self.outputs]
         return data
 
-    def detect_video(self, file_name: str, conf=0.5, end2end=False) -> str:
+    def detect_video(self, file_name: str, session_id:str, conf=0.5, end2end=False) -> str:
         cap = cv2.VideoCapture(file_name)
         fourcc = cv2.VideoWriter_fourcc('I','4','2','0')
         fps = int(round(cap.get(cv2.CAP_PROP_FPS)))
