@@ -3,14 +3,14 @@ Commented Codes are No More Used from 01Feb2023 because of Server Integration.
 """
 import os
 import sys
-import time
 import logging
 import streamlit as st
 import streamlit.components.v1 as components
 
 from app.utils import dir_func
-from app.ffmpeg_func import video_preprocessing
+from app.ffmpeg_func import video_preprocessing, combine_videoaudio
 from app.subtitle_func import get_html, json2sub
+from app.synthesisaudio import json2audio
 from Model.detector import detect
 
 from requests import get
@@ -82,33 +82,41 @@ def main():
         dir_func(tmp_path, rmtree=True, mkdir=True)
         dir_func(dst_path, rmtree=True, mkdir=True)
         preprocessed_file = os.path.join(tmp_path, "preprocessed.mp4")
-        result_file = os.path.join(dst_path, "result.mp4")
+        resultvideo_file = os.path.join(dst_path, "resultvideo.mp4")
+        resultvideoaudio_file = os.path.join(dst_path, "resultvideoaudio.mp4")
 
         try:
             video_preprocessing(save_filepath, preprocessed_file, resize_h=640, tgt_framerate=TARGET_FPS)
-            start = time.time()
-            result_file, frame_json = detect(preprocessed_file, user_session, result_file)
-            end = time.time()
-            print(f"전처리 ~ Detection : {end - start}초")
-            json2sub(session_id=user_session, json_str=frame_json, fps=TARGET_FPS, save=True, ext=subtitle_ext)
+
+            if 1: # Pytorch
+                resultvideo_file, frame_json = detect(preprocessed_file, user_session, resultvideo_file)
+            else: # TensorRT
+                from Model.onnx_tensorrt.utils import BaseEngine
+                pred = BaseEngine(engine_path='./Model/onnx_tensorrt/yolov8n_custom.trt')
+                resultvideo_file, frame_json = pred.detect_video(file_name=preprocessed_file, user_session=user_session, conf=0.1, end2end=True)
+
+            json2sub(session_id=user_session, json_str=frame_json, fps=TARGET_FPS, save=True)
+            audio_file = json2audio(session_id=user_session, json_str=frame_json, fps=TARGET_FPS, dst_fn="synthesizedaudio", save=True)
+            combine_videoaudio(resultvideo_file, audio_file, resultvideoaudio_file)
+            # st.video(open(resultvideoaudio_file, 'rb').read(), format="video/mp4")
             components.html(f"""
-  <div class="container">
-    <video controls preload="auto" width="{container_w}" autoplay crossorigin="anonymous">
-    <!-- <source src="http://{EXTERNAL_IP}:30002/{user_session}/result.mp4" type="video/mp4"/> -->
-    <!-- <track src="http://{EXTERNAL_IP}:30002/{user_session}/result.{subtitle_ext}" srclang="ko" type="text/{subtitle_ext}" default/>-->
-    <source src="http://localhost:30002/{user_session}/video" type="video/mp4"/>
-    <track src="http://localhost:30002/{user_session}/subtitle" srclang="ko" type="text/{subtitle_ext}" default/>
-  </video>
-  </div>
-""", width=container_w, height=int(container_w / 16 * 9))
+              <div class="container">
+                <video controls preload="auto" width="{container_w}" autoplay crossorigin="anonymous">
+                <!-- <source src="http://{EXTERNAL_IP}:30002/{user_session}/result.mp4" type="video/mp4"/> -->
+                <!-- <track src="http://{EXTERNAL_IP}:30002/{user_session}/result.{subtitle_ext}" srclang="ko" type="text/{subtitle_ext}" default/>-->
+                <source src="http://localhost:30002/{user_session}/video" type="video/mp4"/>
+                <track src="http://localhost:30002/{user_session}/subtitle" srclang="ko" type="text/{subtitle_ext}" default/>
+              </video>
+              </div>
+            """, width=container_w, height=int(container_w / 16 * 9))
 
         except Exception as e:
             placeholder.warning(f"파일 처리 중 요류가 발생하였습니다.\n{e.with_traceback(sys.exc_info()[2])}")
             logging.exception(str(e), exc_info=True)
 
         finally:
-            dir_func(upload_path, rmtree=False, mkdir=False)
-            dir_func(tmp_path, rmtree=False, mkdir=False)
+            dir_func(upload_path, rmtree=True, mkdir=False)
+            dir_func(tmp_path, rmtree=True, mkdir=False)
 
 
 main()

@@ -11,3 +11,4 @@ pillow
 opencv-python-headless
 ultralytics==8.0.25
 pynvml
+pydub
