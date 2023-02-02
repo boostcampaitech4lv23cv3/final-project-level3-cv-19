@@ -8,8 +8,9 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from app.utils import dir_func
-from app.ffmpeg_func import video_preprocessing
+from app.ffmpeg_func import video_preprocessing, combine_videoaudio
 from app.subtitle_func import get_html, json2srt
+from app.synthesisaudio import json2audio
 from Model.detector import detect
 
 try:
@@ -77,20 +78,23 @@ def main():
         dir_func(tmp_path, rmtree=True, mkdir=True)
         dir_func(dst_path, rmtree=True, mkdir=True)
         preprocessed_file = os.path.join(tmp_path, "preprocessed.mp4")
-        result_file = os.path.join(dst_path, "result.mp4")
-
+        resultvideo_file = os.path.join(dst_path, "resultvideo.mp4")
+        resultvideoaudio_file = os.path.join(dst_path, "resultvideoaudio.mp4")
+        
         try:
             video_preprocessing(save_filepath, preprocessed_file, resize_h=640, tgt_framerate=TARGET_FPS)
             
             if 1: # Pytorch
-                result_file, frame_json = detect(preprocessed_file, user_session, result_file)
+                resultvideo_file, frame_json = detect(preprocessed_file, user_session, resultvideo_file)
             else: # TensorRT
                 from Model.onnx_tensorrt.utils import BaseEngine
                 pred = BaseEngine(engine_path='./Model/onnx_tensorrt/yolov8n_custom.trt')
-                result_file, frame_json = pred.detect_video(file_name=preprocessed_file, user_session=user_session, conf=0.1, end2end=True)
+                resultvideo_file, frame_json = pred.detect_video(file_name=preprocessed_file, user_session=user_session, conf=0.1, end2end=True)
 
             json2srt(session_id=user_session, json_str=frame_json, fps=TARGET_FPS, save=True)
-            st.video(open(result_file, 'rb').read(), format="video/mp4")
+            audio_file = json2audio(session_id=user_session, json_str=frame_json, fps=TARGET_FPS, dst_fn="synthesizedaudio", save=True)
+            combine_videoaudio(resultvideo_file, audio_file, resultvideoaudio_file)
+            st.video(open(resultvideoaudio_file, 'rb').read(), format="video/mp4")
             # TODO
             # components.html(get_html(session_id=user_session)[1], width=700)
 
