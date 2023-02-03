@@ -9,9 +9,11 @@ import streamlit.components.v1 as components
 
 from app.utils import dir_func
 from app.ffmpeg_func import video_preprocessing, combine_videoaudio
-from app.subtitle_func import get_html, json2srt
+from app.subtitle_func import get_html, json2sub
 from app.synthesisaudio import json2audio
 from Model.detector import detect
+
+from requests import get
 
 try:
     from streamlit.runtime.runtime import SessionInfo
@@ -47,10 +49,12 @@ def get_session_id() -> str:
     return ctx.session_id
 
 
-SERVER_URL = "http://localhost:30002/results"
 TARGET_FPS = 15
+EXTERNAL_IP = get('https://api.ipify.org').content.decode('utf8')
 user_session = get_session_id()
 st.set_page_config(layout="centered")
+container_w = 700
+subtitle_ext = "vtt"
 
 # PATH SETTINGS
 upload_path = f"app/uploaded/{user_session}/"
@@ -79,11 +83,11 @@ def main():
         dir_func(dst_path, rmtree=True, mkdir=True)
         preprocessed_file = os.path.join(tmp_path, "preprocessed.mp4")
         resultvideo_file = os.path.join(dst_path, "resultvideo.mp4")
-        resultvideoaudio_file = os.path.join(dst_path, "resultvideoaudio.mp4")
-        
+        resultvideoaudio_file = os.path.join(dst_path, "result.mp4")
+
         try:
             video_preprocessing(save_filepath, preprocessed_file, resize_h=640, tgt_framerate=TARGET_FPS)
-            
+
             if 1: # Pytorch
                 resultvideo_file, frame_json = detect(preprocessed_file, user_session, resultvideo_file)
             else: # TensorRT
@@ -91,20 +95,28 @@ def main():
                 pred = BaseEngine(engine_path='./Model/onnx_tensorrt/yolov8n_custom.trt')
                 resultvideo_file, frame_json = pred.detect_video(file_name=preprocessed_file, user_session=user_session, conf=0.1, end2end=True)
 
-            json2srt(session_id=user_session, json_str=frame_json, fps=TARGET_FPS, save=True)
+            json2sub(session_id=user_session, json_str=frame_json, fps=TARGET_FPS, save=True)
             audio_file = json2audio(session_id=user_session, json_str=frame_json, fps=TARGET_FPS, dst_fn="synthesizedaudio", save=True)
             combine_videoaudio(resultvideo_file, audio_file, resultvideoaudio_file)
-            st.video(open(resultvideoaudio_file, 'rb').read(), format="video/mp4")
-            # TODO
-            # components.html(get_html(session_id=user_session)[1], width=700)
+            # st.video(open(resultvideoaudio_file, 'rb').read(), format="video/mp4")
+            components.html(f"""
+              <div class="container">
+                <video controls preload="auto" width="{container_w}" autoplay crossorigin="anonymous">
+                <!-- <source src="http://{EXTERNAL_IP}:30002/{user_session}/result.mp4" type="video/mp4"/> -->
+                <!-- <track src="http://{EXTERNAL_IP}:30002/{user_session}/result.{subtitle_ext}" srclang="ko" type="text/{subtitle_ext}" default/>-->
+                <source src="http://localhost:30002/{user_session}/video" type="video/mp4"/>
+                <track src="http://localhost:30002/{user_session}/subtitle" srclang="ko" type="text/{subtitle_ext}" default/>
+              </video>
+              </div>
+            """, width=container_w, height=int(container_w / 16 * 9))
 
         except Exception as e:
             placeholder.warning(f"파일 처리 중 요류가 발생하였습니다.\n{e.with_traceback(sys.exc_info()[2])}")
             logging.exception(str(e), exc_info=True)
 
         finally:
-            dir_func(upload_path, rmtree=False, mkdir=False)
-            dir_func(tmp_path, rmtree=False, mkdir=False)
+            dir_func(upload_path, rmtree=True, mkdir=False)
+            dir_func(tmp_path, rmtree=True, mkdir=False)
 
 
 main()

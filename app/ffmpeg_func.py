@@ -114,8 +114,6 @@ def video_preprocessing(file_path: str, dst_file: str, resize_h=None, tgt_framer
 
     if isinstance(resize_h, int):
         resizing_cmd = f" -vf scale=-1:{resize_h}"
-        if deviceCount != 0:
-            resizing_cmd = f" -vf scale_cuda=-1:{resize_h}"
     elif resize_h is not None:
         print("Something wrong in parameter 'resize_h', please check again")
         raise TypeError
