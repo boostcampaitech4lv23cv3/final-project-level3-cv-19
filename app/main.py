@@ -1,6 +1,3 @@
-"""
-Commented Codes are No More Used from 01Feb2023 because of Server Integration.
-"""
 import os
 import sys
 import logging
@@ -80,7 +77,6 @@ def main():
             placeholder.success(f"파일이 서버에 저장되었습니다.")
 
         dir_func(tmp_path, rmtree=True, mkdir=True)
-        dir_func(dst_path, rmtree=True, mkdir=True)
         preprocessed_file = os.path.join(tmp_path, "preprocessed.mp4")
         resultvideo_file = os.path.join(dst_path, "resultvideo.mp4")
         resultvideoaudio_file = os.path.join(dst_path, "result.mp4")
@@ -88,9 +84,9 @@ def main():
         try:
             video_preprocessing(save_filepath, preprocessed_file, resize_h=640, tgt_framerate=TARGET_FPS)
 
-            if 1: # Pytorch
+            if 1:  # Pytorch
                 resultvideo_file, frame_json = detect(preprocessed_file, user_session, resultvideo_file)
-            else: # TensorRT
+            else:  # TensorRT
                 from Model.onnx_tensorrt.utils import BaseEngine
                 pred = BaseEngine(engine_path='./Model/onnx_tensorrt/yolov8n_custom.trt')
                 resultvideo_file, frame_json = pred.detect_video(file_name=preprocessed_file, user_session=user_session, conf=0.1, end2end=True)
@@ -98,14 +94,11 @@ def main():
             json2sub(session_id=user_session, json_str=frame_json, fps=TARGET_FPS, save=True)
             audio_file = json2audio(session_id=user_session, json_str=frame_json, fps=TARGET_FPS, dst_fn="synthesizedaudio", save=True)
             combine_videoaudio(resultvideo_file, audio_file, resultvideoaudio_file)
-            # st.video(open(resultvideoaudio_file, 'rb').read(), format="video/mp4")
             components.html(f"""
               <div class="container">
                 <video controls preload="auto" width="{container_w}" autoplay crossorigin="anonymous">
-                <!-- <source src="http://{EXTERNAL_IP}:30002/{user_session}/result.mp4" type="video/mp4"/> -->
-                <!-- <track src="http://{EXTERNAL_IP}:30002/{user_session}/result.{subtitle_ext}" srclang="ko" type="text/{subtitle_ext}" default/>-->
-                <source src="http://{EXTERNAL_IP}:30002/{user_session}/video" type="video/mp4"/>
-                <track src="http://{EXTERNAL_IP}:30002/{user_session}/subtitle" srclang="ko" type="text/{subtitle_ext}" default/>
+                  <source src="http://{EXTERNAL_IP}:30002/{user_session}/video" type="video/mp4"/>
+                  <track src="http://{EXTERNAL_IP}:30002/{user_session}/subtitle" srclang="ko" type="text/{subtitle_ext}" default/>
               </video>
               </div>
             """, width=container_w, height=int(container_w / 16 * 9))
@@ -119,4 +112,5 @@ def main():
             dir_func(tmp_path, rmtree=True, mkdir=False)
 
 
+dir_func(dst_path, rmtree=True, mkdir=True)
 main()
