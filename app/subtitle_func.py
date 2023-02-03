@@ -41,23 +41,3 @@ def json2sub(session_id: str, json_str: str, fps=10, save: bool = True, ext: str
         with open(os.path.join(save_path, f"result.{ext}"), 'w+', encoding='utf-8') as f:
             f.writelines(parsed_str)
     return parsed_str
-
-
-def get_html(external_ip: str, session_id: str, sub_ext: str = "vtt") -> tuple:
-    html_path = os.path.join(APP_PATH, "templates", "html", session_id)
-    dir_func(html_path, rmtree=True, mkdir=True)
-    html_str = f"""
-{{% extends "base.html" %}}
-{{% block content %}}
-  <div class="container">
-    <video id="my-video" controls preload="auto" width="700" autoplay crossorigin="anonymous">
-    <source src="http://{external_ip}:30002/{session_id}/video" type="video/mp4"/>
-    <track src="http://{external_ip}:30002/{session_id}/subtitle" kind="subtitles" srclang="ko" label="한국어" default/>
-  </video>
-  </div>
-{{% endblock %}}
-"""
-    html_fp = os.path.join(html_path, "subs.html")
-    with open(html_fp, 'w+', encoding='utf-8') as f:
-        f.writelines(html_str)
-    return html_fp, html_str

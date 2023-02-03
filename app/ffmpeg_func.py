@@ -128,8 +128,11 @@ def video_preprocessing(file_path: str, dst_file: str, resize_h=None, tgt_framer
     check_call(shlex.split(cmd), universal_newlines=True)
 
 
-def combine_videoaudio(video_file_path: str, audio_file_path: str, dst_file: str):
+def combine_video_audio(img_dir: str, audio_file_path: str, dst_file: str, fps=15):
+    img_list = [f"file '{file_name}'\n" for file_name in sorted(os.listdir(img_dir)) if file_name.endswith(".jpg")]
+    file_list_path = f"{img_dir}/filelist.txt"
+    with open(file_list_path, 'w+', encoding="utf-8") as f:
+        f.writelines(img_list)
     vcodec = "h264_nvenc" if device_count != 0 else "libx264"
-    cmd = f"ffmpeg -i {video_file_path} -i {audio_file_path} -vcodec {vcodec} {dst_file}"
+    cmd = f"ffmpeg -y -f concat -safe 0 -i {file_list_path} -i {audio_file_path} -vcodec {vcodec} -r {fps} {dst_file}"
     check_call(shlex.split(cmd), universal_newlines=True)
-
