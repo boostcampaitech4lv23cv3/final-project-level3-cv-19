@@ -114,8 +114,6 @@ def video_preprocessing(file_path: str, dst_file: str, resize_h=None, tgt_framer
 
     if isinstance(resize_h, int):
         resizing_cmd = f" -vf scale=-1:{resize_h}"
-        if deviceCount != 0:
-            resizing_cmd = f" -vf scale_cuda=-1:{resize_h}"
     elif resize_h is not None:
         print("Something wrong in parameter 'resize_h', please check again")
         raise TypeError
@@ -128,3 +126,10 @@ def video_preprocessing(file_path: str, dst_file: str, resize_h=None, tgt_framer
     vcodec = "h264_nvenc" if device_count != 0 else "libx264"
     cmd = f"ffmpeg -nostdin -y -i {file_path}{resizing_cmd} -vcodec {vcodec} -an -movflags faststart{framerate_chg_cmd} -y {dst_file}"
     check_call(shlex.split(cmd), universal_newlines=True)
+
+
+def combine_videoaudio(video_file_path: str, audio_file_path: str, dst_file: str):
+    vcodec = "h264_nvenc" if device_count != 0 else "libx264"
+    cmd = f"ffmpeg -i {video_file_path} -i {audio_file_path} -vcodec {vcodec} {dst_file}"
+    check_call(shlex.split(cmd), universal_newlines=True)
+

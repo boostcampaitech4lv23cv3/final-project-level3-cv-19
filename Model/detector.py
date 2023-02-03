@@ -23,6 +23,7 @@ SAVE_PATH = os.path.join(MODEL_DIR, "save")
 def detect(src: str, session_id:str, dst: str):
     start = time.time()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print('Inference by', device)
     model = AutoBackend(weights=os.path.join(MODEL_DIR, "yolov8", 'yolov8n_custom.pt'), device=device, dnn=False, fp16=False)
 
     model.eval()
