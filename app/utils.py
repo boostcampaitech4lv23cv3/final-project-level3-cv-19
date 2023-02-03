@@ -8,3 +8,7 @@ def dir_func(path: str, rmtree: bool = True, mkdir: bool = True):
     if mkdir:
         if not os.path.exists(path):
             os.makedirs(path)
+
+
+def classifier():
+    pass
