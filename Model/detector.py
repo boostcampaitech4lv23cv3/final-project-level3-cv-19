@@ -20,7 +20,7 @@ APP_PATH = os.path.join(PRJ_ROOT_PATH, "app")
 SAVE_PATH = os.path.join(MODEL_DIR, "save")
 
 
-def detect(src: str, session_id:str, dst: str):
+def detect(src: str, session_id: str, dst: str, conf_thres=0.25):
     start = time.time()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('Inference by', device)
@@ -61,7 +61,7 @@ def detect(src: str, session_id:str, dst: str):
 
         im = im.to(device)
         preds = model(im)
-        preds = non_max_suppression(preds, conf_thres=0.25, iou_thres=0.45, classes=None, agnostic=False, max_det=1000)
+        preds = non_max_suppression(preds, conf_thres=conf_thres, iou_thres=0.45, classes=None, agnostic=False, max_det=1000)
 
         results = []
 
@@ -98,9 +98,7 @@ def detect(src: str, session_id:str, dst: str):
                     c = int(cls)
                     label = f'{model.names[c]}{conf:.2f}'
                     annotator.box_label(d.xyxy.squeeze(), label, color=colors(4 * (warn - 1), True))
-                    data[f'{frame_idx:04d}'][f'{i}'] = {"class": f'{model.names[c]}', "warning_lv": f'{warn}',
-                                                        "location": f'{int(((box[0] + box[2]) // 2) // (shape[1] // 3))}'}
-
+                    data[f'{frame_idx:04d}'][f'{i}'] = {"class": f'{model.names[c]}', "warning_lv": f'{warn}', "location": f'{int(((box[0] + box[2]) // 2) // (shape[1] // 3))}'}
                     i += 1
 
         im0 = annotator.result()
@@ -123,6 +121,5 @@ def detect(src: str, session_id:str, dst: str):
     h264_encoding(str(p.name), dst)
 
     with open(os.path.join(tmp_path, f'{p.stem}.txt'), 'w') as file:
-        file.write(
-            f'model set: {time_record1 - start:.4f} sec, inference:{time_record2 - time_record1:.4f} sec, write & encoding:{time.time() - time_record2:.4f} sec\n')
+        file.write(f'model set: {time_record1 - start:.4f} sec, inference:{time_record2 - time_record1:.4f} sec, write & encoding:{time.time() - time_record2:.4f} sec\n')
     return dst, json_obj

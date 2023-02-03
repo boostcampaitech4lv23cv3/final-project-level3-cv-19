@@ -8,8 +8,8 @@ from subprocess import check_call, PIPE, Popen
 
 re_metadata = re.compile('Duration: (\d{2}):(\d{2}):(\d{2})\.\d+,.*\n.* (\d+(\.\d+)?) fps')
 pynvml.nvmlInit()
-device_count = 0
-# device_count = pynvml.nvmlDeviceGetCount()  # GPU HW Accel이 가능하면 주석 해제
+# device_count = 0
+device_count = pynvml.nvmlDeviceGetCount()  # GPU HW Accel이 가능하면 주석 해제
 
 
 def get_metadata(filename):
@@ -128,7 +128,7 @@ def video_preprocessing(file_path: str, dst_file: str, resize_h=None, tgt_framer
     check_call(shlex.split(cmd), universal_newlines=True)
 
 
-def combine_videoaudio(video_file_path: str, audio_file_path: str, dst_file: str):
+def combine_video_audio(video_file_path: str, audio_file_path: str, dst_file: str):
     vcodec = "h264_nvenc" if device_count != 0 else "libx264"
     cmd = f"ffmpeg -i {video_file_path} -i {audio_file_path} -vcodec {vcodec} {dst_file}"
     check_call(shlex.split(cmd), universal_newlines=True)

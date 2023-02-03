@@ -4,39 +4,24 @@ import logging
 import streamlit as st
 import streamlit.components.v1 as components
 
+from streamlit.runtime.scriptrunner.script_run_context import get_script_run_ctx
+
 from app.utils import dir_func
-from app.ffmpeg_func import video_preprocessing, combine_videoaudio
-from app.subtitle_func import get_html, json2sub
+from app.ffmpeg_func import video_preprocessing, combine_video_audio
+from app.subtitle_func import json2sub
 from app.audio_func import json2audio
 from Model.detector import detect
 
 from requests import get
 
-try:
-    from streamlit.runtime.runtime import SessionInfo
-except ModuleNotFoundError:
-    # streamlit < 1.12.1
-    try:
-        from streamlit.web.server.server import SessionInfo  # type: ignore
-    except ModuleNotFoundError:
-        # streamlit < 1.12.0
-        from streamlit.server.server import SessionInfo  # type: ignore
+# if st.session_state.get("a", False):
+#     st.session_state.disabled = True
+# elif st.session_state.get("a", True):
+#     st.session_state.disabled = False
 
-try:
-    from streamlit.runtime.scriptrunner import get_script_run_ctx
-except ModuleNotFoundError:
-    # streamlit < 1.12.0
-    try:
-        from streamlit.scriptrunner import get_script_run_ctx  # type: ignore
-    except ModuleNotFoundError:
-        # streamlit < 1.8
-        try:
-            from streamlit.script_run_context import get_script_run_ctx  # type: ignore
-        except ModuleNotFoundError:
-            # streamlit < 1.4
-            from streamlit.report_thread import (  # type: ignore
-                get_report_ctx as get_script_run_ctx,
-            )
+# def disable(b, c):
+#     st.session_state["disabled"] = b
+#     st.session_state["disabled"] = c
 
 
 def get_session_id() -> str:
@@ -58,14 +43,17 @@ upload_path = f"app/uploaded/{user_session}/"
 dst_path = f"app/result/{user_session}/"
 html_path = f"app/html/{user_session}/"
 tmp_path = f"app/tmp/{user_session}/"
+wav_path = f"app/audio/{user_session}/"
 
 
 def main():
     st.title("보행 시 장애물 안내 서비스")
     st.write(f"Session ID : {user_session}")
 
-    uploaded_file = st.file_uploader("동영상을 선택하세요", type=["mp4"])
+    # uploaded_file = st.file_uploader("동영상을 선택하세요", type=["mp4"], key="c", disabled=st.session_state.get("disabled", True))
     placeholder = st.empty()
+    upload_place = st.empty()
+    uploaded_file = upload_place.file_uploader("동영상을 선택하세요", type=["mp4"])
 
     if uploaded_file:
         # Save Uploaded File
@@ -75,41 +63,51 @@ def main():
         with open(save_filepath, 'wb') as f:
             f.write(uploaded_file.getbuffer())
             placeholder.success(f"파일이 서버에 저장되었습니다.")
-
+            upload_place.empty()
         dir_func(tmp_path, rmtree=True, mkdir=True)
         preprocessed_file = os.path.join(tmp_path, "preprocessed.mp4")
-        resultvideo_file = os.path.join(dst_path, "resultvideo.mp4")
-        resultvideoaudio_file = os.path.join(dst_path, "result.mp4")
+        result_video_file = os.path.join(dst_path, "resultvideo.mp4")
+        result_av_file = os.path.join(dst_path, "result.mp4")
 
-        try:
-            video_preprocessing(save_filepath, preprocessed_file, resize_h=640, tgt_framerate=TARGET_FPS)
+        col_slide, col_button = st.columns([2, 1])
+        # slide_value = col_slide.slider("Confidence Lv Threshold", min_value=0.1, max_value=1.0, value=0.25, step=0.05, key="b", disabled=st.session_state.get("disabled", True))
+        # button_value = col_button.button("Start Process", key="a", on_click=disable, args=(True, True))
+        slide_value = col_slide.slider("Confidence Lv Threshold", min_value=0.1, max_value=1.0, value=0.25, step=0.05)
+        button_value = col_button.button("Start Process")
 
-            if 1:  # Pytorch
-                resultvideo_file, frame_json = detect(preprocessed_file, user_session, resultvideo_file)
-            else:  # TensorRT
-                from Model.onnx_tensorrt.utils import BaseEngine
-                pred = BaseEngine(engine_path='./Model/onnx_tensorrt/yolov8n_custom.trt')
-                resultvideo_file, frame_json = pred.detect_video(file_name=preprocessed_file, user_session=user_session, conf=0.1, end2end=True)
+        if button_value:
+            try:
+                video_preprocessing(save_filepath, preprocessed_file, resize_h=640, tgt_framerate=TARGET_FPS)
+                placeholder.success("동영상 전처리 완료")
+                with st.spinner("객체 탐지 중..."):
+                    if 1:  # Pytorch
+                        result_video_file, frame_json = detect(preprocessed_file, user_session, result_video_file, conf_thres=slide_value)
+                    else:  # TensorRT
+                        from Model.onnx_tensorrt.utils import BaseEngine
+                        pred = BaseEngine(engine_path='./Model/onnx_tensorrt/yolov8n_custom.trt')
+                        result_video_file, frame_json = pred.detect_video(file_name=preprocessed_file, user_session=user_session, conf=0.1, end2end=True)
+                placeholder.success("객체 탐지 완료, 후처리 중...")
+                json2sub(session_id=user_session, json_str=frame_json, fps=TARGET_FPS, save=True)
+                json2audio(dst_path=wav_path, json_str=frame_json, fps=TARGET_FPS, save=True)
+                audio_file = os.path.join(wav_path, "synthesized_audio.wav")
+                combine_video_audio(result_video_file, audio_file, result_av_file)
+                components.html(f"""
+                  <div class="container">
+                    <video controls preload="auto" width="{container_w}" autoplay crossorigin="anonymous">
+                      <source src="http://{EXTERNAL_IP}:30002/{user_session}/video" type="video/mp4"/>
+                      <track src="http://{EXTERNAL_IP}:30002/{user_session}/subtitle" srclang="ko" type="text/{subtitle_ext}" default/>
+                  </video>
+                  </div>
+                """, width=container_w, height=int(container_w / 16 * 9))
+                placeholder.success("처리 완료")
 
-            json2sub(session_id=user_session, json_str=frame_json, fps=TARGET_FPS, save=True)
-            audio_file = json2audio(session_id=user_session, json_str=frame_json, fps=TARGET_FPS, dst_fn="synthesizedaudio", save=True)
-            combine_videoaudio(resultvideo_file, audio_file, resultvideoaudio_file)
-            components.html(f"""
-              <div class="container">
-                <video controls preload="auto" width="{container_w}" autoplay crossorigin="anonymous">
-                  <source src="http://{EXTERNAL_IP}:30002/{user_session}/video" type="video/mp4"/>
-                  <track src="http://{EXTERNAL_IP}:30002/{user_session}/subtitle" srclang="ko" type="text/{subtitle_ext}" default/>
-              </video>
-              </div>
-            """, width=container_w, height=int(container_w / 16 * 9))
+            except Exception as e:
+                placeholder.warning(f"파일 처리 중 오류가 발생하였습니다.\n{e.with_traceback(sys.exc_info()[2])}")
+                logging.exception(str(e), exc_info=True)
 
-        except Exception as e:
-            placeholder.warning(f"파일 처리 중 오류가 발생하였습니다.\n{e.with_traceback(sys.exc_info()[2])}")
-            logging.exception(str(e), exc_info=True)
-
-        finally:
-            dir_func(upload_path, rmtree=True, mkdir=False)
-            dir_func(tmp_path, rmtree=True, mkdir=False)
+            finally:
+                dir_func(upload_path, rmtree=True, mkdir=False)
+                dir_func(tmp_path, rmtree=True, mkdir=False)
 
 
 dir_func(dst_path, rmtree=True, mkdir=True)
