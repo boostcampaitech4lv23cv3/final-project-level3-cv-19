@@ -36,6 +36,10 @@ def detect(src: str, session_id: str, conf_thres=0.25, THRESHOLD_y=0.7):
     dataset = LoadImages(src, imgsz=imgsz, stride=stride, auto=pt, vid_stride=1)
 
     json_obj = {}
+    dist_T1=0.1
+    dist_T2=0.2
+    angle_T1=45
+    angle_T2=15
 
     for frame_idx, batch in enumerate(dataset, 1):
         _, img_nparr, im0s, vid_cap, s = batch
@@ -56,6 +60,7 @@ def detect(src: str, session_id: str, conf_thres=0.25, THRESHOLD_y=0.7):
             bbox[:, :4] = scale_boxes(img_nparr.shape[2:], bbox[:, :4], (img_h, img_w)).round()
 
             json_obj[f'{frame_idx:04d}'] = {}
+            #warn_obj=[]
             with open(TXT_FILE, 'a') as f:
                 f.write(f'{frame_idx:04d}:\n')
                 for obj_id, obj in enumerate(reversed(Results(boxes=bbox, orig_shape=(img_h, img_w)).boxes), 1):
@@ -68,15 +73,19 @@ def detect(src: str, session_id: str, conf_thres=0.25, THRESHOLD_y=0.7):
                         angle = 90 - math.atan2(-d_y, d_x) * 180 / math.pi
 
                         f.write(f'{obj_id:02d} {dist:.1f} {angle:.1f} {obj.xyxy.squeeze().tolist()}\n')
-                        if dist < img_h * 0.1 or (img_h * 0.1 < dist < img_h * 0.2 and -45 <= angle <= 45) or -15 <= angle <= 15:
+                        #if dist < img_h * 0.1 or (img_h * 0.1 < dist < img_h * 0.2 and -45 <= angle <= 45) or -15 <= angle <= 15:
+                        #    warn = 1
+                        if dist <= img_h * dist_T1 or (img_h * dist_T1 < dist <= img_h * dist_T2 and -angle_T1 <= angle <= angle_T1) or -angle_T2 <= angle <= angle_T2:
                             warn = 1
+                            #warn_obj.append((c, warn, int((((x_min + x_max)/ 2 - (img_w / 2)) /(img_h * 0.1)+3 )// 2), dist, angle))
 
                         cls, conf = obj.cls.squeeze(), obj.conf.squeeze()
                         c = int(cls)
-                        label = f'{model.names[c]}{conf:.2f}'
+                        label = f'{model.names[c]}'
                         annotator.box_label(obj.xyxy.squeeze(), label, color=colors(4 * (warn - 1), True))
-                        json_obj[f'{frame_idx:04d}'][f'{obj_id:02d}'] = {"class": f'{model.names[c]}', "warning_lv": f'{warn}', "location": f'{int(((x_min + x_max) // 2) // (img_w // 3))}'}
-                        obj_id += 1
+                        json_obj[f'{frame_idx:04d}'][f'{obj_id:02d}'] = {"class": f'{model.names[c]}', "warning_lv": f'{warn}', "location": f'{int((((x_min + x_max)/ 2 - (img_w / 2)) /(img_h * 0.1)+3 )// 2)}'}
+                    
+                    
 
         cv2.imwrite(os.path.join(img_dst, f"{frame_idx:04}.jpg"), annotator.result())
 
