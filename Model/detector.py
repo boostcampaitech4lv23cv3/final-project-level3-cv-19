@@ -98,7 +98,8 @@ def detect(src: str, session_id:str, dst: str):
                     if dist <= shape[0] * dist_T1 or (
                             shape[0] * dist_T1 < dist <= shape[0] * dist_T2 and -angle_T1 <= angle <= angle_T1) or -angle_T2 <= angle <= angle_T2:
                         warn = 1
-                        warn_obj.append((c,warn,int(((box[0] + box[2]) // 2) // (shape[1] // 3)),dist))
+                        warn_obj.append((c,warn,int((((box[0] + box[2])/ 2 - (shape[1] / 2)) /(shape[0] * 0.1)+3 )// 2),dist))
+                        
 
                     annotator.box_label(d.xyxy.squeeze(), label, color=colors(4 * (warn - 1), True))
                     j += 1
