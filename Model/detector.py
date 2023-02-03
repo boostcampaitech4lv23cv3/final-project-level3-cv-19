@@ -35,9 +35,13 @@ def detect(src: str, session_id:str, dst: str):
     data = {}
 
     T1 = 0.7  # threshold1 y
-    T2_x1 = 0.3  # threshold2 xleft
-    T2_x2 = 0.7  # threshold2 xright
-    T2_y = 0.9  # threshold2 y
+    #T2_x1 = 0.3  # threshold2 xleft
+    #T2_x2 = 0.7  # threshold2 xright
+    #T2_y = 0.9  # threshold2 y
+    dist_T1=0.1
+    dist_T2=0.2
+    angle_T1=45
+    angle_T2=15
 
     time_record1 = time.time()
     # Local Variables Assignment
@@ -74,8 +78,9 @@ def detect(src: str, session_id:str, dst: str):
             results.append(Results(boxes=pred, orig_shape=shape[:2]))
             annotator = Annotator(im0, line_width=2, example=str(names))
             det = results[i].boxes
-            i = 0
+            j = 0
             data[f'{frame_idx:04d}'] = {}
+            warn_obj=[]
             TXT_FILE = os.path.join(tmp_path, f'dist_degree_{p.stem}.txt')
 
             with open(TXT_FILE, 'a') as mathfile:
@@ -83,24 +88,34 @@ def detect(src: str, session_id:str, dst: str):
             for d in reversed(det):
                 box = d.xyxy.squeeze().tolist()
                 if box[3] > shape[0] * T1:
+                    cls, conf = d.cls.squeeze(), d.conf.squeeze()
+                    c = int(cls)
+                    label = f'{model.names[c]}{conf:.2f}'
+                    
                     warn = 2
                     d_x, d_y = (box[0] + box[2]) / 2 - shape[1] / 2, box[3] - shape[0]
                     dist = math.sqrt(pow(d_x, 2) + pow(d_y, 2))
                     angle = 90 - math.atan2(-d_y, d_x) * 180 / math.pi
                     with open(TXT_FILE, 'a') as mathfile:
-                        mathfile.write(f'{i} {dist:.1f} {angle:.1f} {d.xyxy.squeeze().tolist()}\n')
-                    if dist < shape[0] * 0.1 or (
-                            shape[0] * 0.1 < dist < shape[0] * 0.2 and -45 <= angle <= 45) or -15 <= angle <= 15:
+                        mathfile.write(f'{j} {dist:.1f} {angle:.1f} {d.xyxy.squeeze().tolist()}\n')
+                    if dist <= shape[0] * dist_T1 or (
+                            shape[0] * dist_T1 < dist <= shape[0] * dist_T2 and -angle_T1 <= angle <= angle_T1) or -angle_T2 <= angle <= angle_T2:
                         warn = 1
+                        warn_obj.append((c,warn,int(((box[0] + box[2]) // 2) // (shape[1] // 3)),dist))
 
-                    cls, conf = d.cls.squeeze(), d.conf.squeeze()
-                    c = int(cls)
-                    label = f'{model.names[c]}{conf:.2f}'
+                    #cls, conf = d.cls.squeeze(), d.conf.squeeze()
+                    #c = int(cls)
+                    #label = f'{model.names[c]}{conf:.2f}'
                     annotator.box_label(d.xyxy.squeeze(), label, color=colors(4 * (warn - 1), True))
-                    data[f'{frame_idx:04d}'][f'{i}'] = {"class": f'{model.names[c]}', "warning_lv": f'{warn}',
-                                                        "location": f'{int(((box[0] + box[2]) // 2) // (shape[1] // 3))}'}
+                    #data[f'{frame_idx:04d}'][f'{i}'] = {"class": f'{model.names[c]}', "warning_lv": f'{warn}',
+                    #                                    "location": f'{int(((box[0] + box[2]) // 2) // (shape[1] // 3))}'}
 
-                    i += 1
+                    j += 1
+            
+            if len(warn_obj):
+                warn_obj.sort(key=lambda x:x[3])
+                data[f'{frame_idx:04d}'][0]={"class": f'{model.names[warn_obj[0][0]]}', "warning_lv": f'{warn_obj[0][1]}',
+                                                        "location": f'{warn_obj[0][2]}'}
 
         im0 = annotator.result()
         frames.append(im0)
