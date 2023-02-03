@@ -35,9 +35,6 @@ def detect(src: str, session_id:str, dst: str):
     data = {}
 
     T1 = 0.7  # threshold1 y
-    #T2_x1 = 0.3  # threshold2 xleft
-    #T2_x2 = 0.7  # threshold2 xright
-    #T2_y = 0.9  # threshold2 y
     dist_T1=0.1
     dist_T2=0.2
     angle_T1=45
@@ -103,13 +100,7 @@ def detect(src: str, session_id:str, dst: str):
                         warn = 1
                         warn_obj.append((c,warn,int(((box[0] + box[2]) // 2) // (shape[1] // 3)),dist))
 
-                    #cls, conf = d.cls.squeeze(), d.conf.squeeze()
-                    #c = int(cls)
-                    #label = f'{model.names[c]}{conf:.2f}'
                     annotator.box_label(d.xyxy.squeeze(), label, color=colors(4 * (warn - 1), True))
-                    #data[f'{frame_idx:04d}'][f'{i}'] = {"class": f'{model.names[c]}', "warning_lv": f'{warn}',
-                    #                                    "location": f'{int(((box[0] + box[2]) // 2) // (shape[1] // 3))}'}
-
                     j += 1
             
             if len(warn_obj):
