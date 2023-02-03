@@ -10,7 +10,7 @@ import streamlit.components.v1 as components
 from app.utils import dir_func
 from app.ffmpeg_func import video_preprocessing, combine_videoaudio
 from app.subtitle_func import get_html, json2sub
-from app.synthesisaudio import json2audio
+from app.audio_func import json2audio
 from Model.detector import detect
 
 from requests import get
