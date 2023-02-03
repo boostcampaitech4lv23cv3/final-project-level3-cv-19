@@ -104,14 +104,14 @@ def main():
                 <video controls preload="auto" width="{container_w}" autoplay crossorigin="anonymous">
                 <!-- <source src="http://{EXTERNAL_IP}:30002/{user_session}/result.mp4" type="video/mp4"/> -->
                 <!-- <track src="http://{EXTERNAL_IP}:30002/{user_session}/result.{subtitle_ext}" srclang="ko" type="text/{subtitle_ext}" default/>-->
-                <source src="http://localhost:30002/{user_session}/video" type="video/mp4"/>
-                <track src="http://localhost:30002/{user_session}/subtitle" srclang="ko" type="text/{subtitle_ext}" default/>
+                <source src="http://{EXTERNAL_IP}:30002/{user_session}/video" type="video/mp4"/>
+                <track src="http://{EXTERNAL_IP}:30002/{user_session}/subtitle" srclang="ko" type="text/{subtitle_ext}" default/>
               </video>
               </div>
             """, width=container_w, height=int(container_w / 16 * 9))
 
         except Exception as e:
-            placeholder.warning(f"파일 처리 중 요류가 발생하였습니다.\n{e.with_traceback(sys.exc_info()[2])}")
+            placeholder.warning(f"파일 처리 중 오류가 발생하였습니다.\n{e.with_traceback(sys.exc_info()[2])}")
             logging.exception(str(e), exc_info=True)
 
         finally:

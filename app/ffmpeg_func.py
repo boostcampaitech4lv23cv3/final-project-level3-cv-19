@@ -129,6 +129,7 @@ def video_preprocessing(file_path: str, dst_file: str, resize_h=None, tgt_framer
 
 
 def combine_videoaudio(video_file_path: str, audio_file_path: str, dst_file: str):
-    cmd = f"ffmpeg -i {video_file_path} -i {audio_file_path} {dst_file}"
+    vcodec = "h264_nvenc" if device_count != 0 else "libx264"
+    cmd = f"ffmpeg -i {video_file_path} -i {audio_file_path} -vcodec {vcodec} {dst_file}"
     check_call(shlex.split(cmd), universal_newlines=True)
 
