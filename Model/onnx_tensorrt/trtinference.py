@@ -8,7 +8,6 @@ import os
 import json
 import math
 from pathlib import Path
-from utils import dir_func # app.
 import argparse
 from ultralytics.yolo.utils.plotting import Annotator, colors
 
@@ -75,7 +74,6 @@ class BaseEngine(object):
         img_dst = os.path.join(tmp_path, "img_dir")
         TXT_FILE = os.path.join(tmp_path, f'dist_degree.txt')
         JSON_FILE = os.path.join(tmp_path, 'objdetection.json')
-        dir_func(img_dst, rmtree=False, mkdir=True)
         
         cap = cv2.VideoCapture(src)
         framecount = int(round(cap.get(cv2.CAP_PROP_FRAME_COUNT)))
@@ -83,31 +81,42 @@ class BaseEngine(object):
         img_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         img_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         json_obj = {}
-        inf_fps = 0
-        dist_T1 = 0.1
-        dist_T2 = 0.2
-        angle_T1 = 45
-        angle_T2 = 15
         print(f'TensorRT inference source:{src}') 
         print(f'framecount:{framecount}, fps:{fps}, width:{img_w}, height:{img_h}')
+
+        mask_h,mask_w = img_h, img_w
+        mask = np.zeros((mask_h,mask_w, 3),np.uint8)
+        mask_thres1 = np.zeros((mask_h,mask_w),np.uint8)
+        mask_thres2 = np.zeros((mask_h,mask_w),np.uint8)
+
+        #mask = np.zeros((720,1280,3),np.uint8)
+        cv2.ellipse(mask,(int(mask_w/2),mask_h),(int(mask_h*0.6),int(mask_h*0.3)),0,180,360,(0,255,255),-1)
+        cv2.ellipse(mask,(int(mask_w/2),mask_h),(int(mask_h*0.2),int(mask_h*0.1)),0,180,360,(0,0,255),-1)
+        cv2.ellipse(mask,(int(mask_w/2),mask_h),(int(mask_h*0.4),int(mask_h*0.2)),0,240,300,(0,0,255),-1)
+        cv2.ellipse(mask,(int(mask_w/2),mask_h),(int(mask_h*0.6),int(mask_h*0.3)),0,255,285,(0,0,255),-1)
+
+        #mask_thres1
+        cv2.ellipse(mask_thres1,(int(mask_w/2),mask_h),(int(mask_h*0.6),int(mask_h*0.3)),0,180,360,255,-1)
+        #mask_thres2
+        cv2.ellipse(mask_thres2,(int(mask_w/2),mask_h),(int(mask_h*0.2),int(mask_h*0.1)),0,180,360,255,-1)
+        cv2.ellipse(mask_thres2,(int(mask_w/2),mask_h),(int(mask_h*0.4),int(mask_h*0.2)),0,240,300,255,-1)
+        cv2.ellipse(mask_thres2,(int(mask_w/2),mask_h),(int(mask_h*0.6),int(mask_h*0.3)),0,255,285,255,-1)
+
         import time
+        t1 = time.time()
+            
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
                 break
             blob, ratio = self.preproc(frame, self.imgsz, self.mean, self.std)
             
-            #t1 = time.time()
             data = self.infer(blob) # run inference by tensorRT
-            #inf_fps = (inf_fps + (1. / (time.time() - t1))) / 2
-            #frame = cv2.putText(frame, "FPS:%d " %inf_fps, (0, 40), cv2.FONT_HERSHEY_SIMPLEX, 1,
-            #                    (0, 0, 255), 2)
 
             num, final_boxes, final_scores, final_cls_inds = data
             final_boxes = np.reshape(final_boxes/ratio, (-1, 4))
             dets = np.concatenate([final_boxes[:num[0]], np.array(final_scores)[:num[0]].reshape(-1, 1), 
                                                             np.array(final_cls_inds)[:num[0]].reshape(-1, 1)], axis=-1)
-            dets = self.getwarningdets(dets, img_w, img_h)
             frame_idx = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
             if ((frame_idx % (4*fps)) == 0):
                 print(f'Inference is in progress {frame_idx}/{framecount}')
@@ -117,37 +126,37 @@ class BaseEngine(object):
                 with open(TXT_FILE, 'a') as f:
                     f.write(f'{frame_idx:04d}:\n')
 
-                    final_boxes, final_scores, final_cls_inds, final_warn_inds = dets[:,:4], dets[:, 4], dets[:, 5], dets[:,6]
-                    frame = self.vis(frame, final_boxes, final_scores, final_cls_inds, final_warn_inds,
-                                    conf=conf_thres, class_names=self.class_names)
-                    timestamp = cap.get(cv2.CAP_PROP_POS_MSEC)
-
-                    for obj_id, [x_min, y_min, x_max, y_max,conf,cls,warn] in enumerate(dets):
+                    #timestamp = cap.get(cv2.CAP_PROP_POS_MSEC)
+                    final_boxes, final_scores, final_cls_inds = dets[:,:4], dets[:, 4], dets[:, 5]
+                    final_warns = [3] * dets.size
+                    for obj_id, [x_min, y_min, x_max, y_max, conf, cls] in enumerate(dets):
                         #print(f'{src}: Frame:{frame_idx} ObjIndex:{obj_id} Time:{timestamp:.2f}--Class:{int(cls)} Warning:{int(warn)}')
-                        
+                        x_min, y_min, x_max, y_max = self.fit2img(img_w, img_h, x_min, y_min, x_max, y_max)
                         if y_max > img_h * THRESHOLD_y:
                             bbox_list = [x_min, y_min, x_max, y_max]
                             dist, angle = self.distance_heading(img_w, img_h, *bbox_list)
 
-                            f.write(f'{obj_id:02d} {dist:.1f} {angle:.1f} {bbox_list}\n')
-                            # if dist < img_h * 0.1 or (img_h * 0.1 < dist < img_h * 0.2 and -45 <= angle <= 45) or -15 <= angle <= 15:
-                            #    warn = 1
-                            if dist <= img_h * dist_T1 or (
-                                    img_h * dist_T1 < dist <= img_h * dist_T2 and -angle_T1 <= angle <= angle_T1) or -angle_T2 <= angle <= angle_T2:
-                                warn = 1
-                                # warn_obj.append((c, warn, int((((x_min + x_max)/ 2 - (img_w / 2)) /(img_h * 0.1)+3 )// 2), dist, angle))
-                            else:
+                            warn=3
+
+                            if np.any((mask_thres1[int(y_min):int(y_max),int(x_min):int(x_max)] & np.ones((int(y_max-y_min),int(x_max-x_min)),np.uint8)) > 0):
                                 warn = 2
+                                if np.any((mask_thres2[int(y_min):int(y_max),int(x_min):int(x_max)] & np.ones((int(y_max-y_min),int(x_max-x_min)),np.uint8)) > 0):
+                                    warn = 1
                             
                             json_obj[f'{frame_idx:04d}'][f'{obj_id:02d}'] = {"class": f'{self.class_names[int(cls)]}',
                                                                                 "warning_lv": f"{warn}",
                                                                                 "location": f'{self.find_location_idx(img_w, x_min, x_max)}',
                                                                                 "distance": round(dist, 2),
                                                                                 "heading": round(angle, 1)}
-            cv2.imwrite(os.path.join(img_dst, f"{frame_idx:04}.jpg"), frame)
-        cv2.destroyAllWindows()
+                            final_warns[obj_id] = warn                                                                
+                    frame = self.vis(frame, final_boxes, final_scores, final_cls_inds, final_warns,
+                                    conf=conf_thres, class_names=self.class_names)                                                            
+            cv2.imwrite(os.path.join(img_dst, f"{frame_idx:04}.jpg"), cv2.addWeighted(mask, 0.2, frame,0.8,0))
         cap.release()
         
+        elapsedtime = time.time() - t1
+        print(f'Inference time {elapsedtime}/Frames {framecount}')
+
         with open(JSON_FILE, 'w') as f:
             json.dump(json_obj, f, ensure_ascii=False, indent=None, sort_keys=True)
 
@@ -165,32 +174,6 @@ class BaseEngine(object):
         for _ in range(100):  # calculate average time
             _ = self.infer(img)
         print(100/(time.perf_counter() - t0), 'FPS')
-
-    def getwarningdets(self, dets,width,height):
-        warningdets = []
-        T1 = 0.7 #threshold1 y
-        T2_x1 = 0.3 #threshold2 xleft
-        T2_x2 =0.7 #threshold2 xright
-        T2_y = 0.9 #threshold2 y
-
-        for x1,y1,x2,y2,score,cls in dets.tolist():
-            box=[x1, y1, x2, y2]
-
-            if box[3]>height*T1: # y - close
-                warn=2
-                d_x, d_y = (box[0] + box[2]) / 2 - width / 2, box[3] - height
-                dist = math.sqrt(pow(d_x,2)+pow(d_y,2))
-                angle = 90 - math.atan2(-d_y,d_x)*180/math.pi
-                
-                if dist<height*0.1 or (height*0.1<dist<height*0.2 and -45<=angle<=45) or -15<=angle<=15:
-                #if box[3]>height*T2_y and not(box[0]>width*T2_x2 or box[2]<width*T2_x1): # x - center
-                    warn=1
-
-                warningdets.append([x1,y1,x2,y2,score,cls,warn])
-
-        warningdets = np.array(warningdets)
-
-        return warningdets
 
     def preproc(self, image, input_size, mean, std, swap=(2, 0, 1)):
         if len(image.shape) == 3:
@@ -282,6 +265,24 @@ class BaseEngine(object):
         distance = math.sqrt(delta_x ** 2 + delta_y ** 2)
         heading = -math.atan2(-delta_y, delta_x) * 180 / math.pi
         return distance, heading
+
+
+    def fit2img(self, img_w, img_h, x_min, y_min, x_max, y_max):
+        x_min = int(x_min)
+        y_min = int(y_min)
+        x_max = int(x_max)
+        y_max = int(y_max)
+
+        if(x_min < 0):
+            x_min = 0
+        if(y_min < 0):
+            y_min = 0
+        if(x_max >= img_w):
+            x_max = img_w - 1
+        if(y_max >= img_h):
+            y_max = img_h - 1
+
+        return x_min, y_min, x_max, y_max
 
 
 class Predictor(BaseEngine):
