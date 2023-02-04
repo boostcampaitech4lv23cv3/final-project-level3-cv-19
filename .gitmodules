@@ -1,4 +1,3 @@
-[submodule "Model/onnx_tensorrt/TensorRT-For-YOLO-Series"]
-	path = Model/onnx_tensorrt/TensorRT-For-YOLO-Series
+[submodule "Model/TensorRT-For-YOLO-Series"]
+	path = Model/TensorRT-For-YOLO-Series
 	url = git@github.com:boostcampaitech4lv23cv3/TensorRT-For-YOLO-Series.git
-	branch = main

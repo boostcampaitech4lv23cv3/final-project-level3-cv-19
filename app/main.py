@@ -62,8 +62,11 @@ def main():
         button_value = col_button.button("Start Process")
 
         if button_value:
+            col_slide.empty()
+
             try:
-                video_preprocessing(save_filepath, preprocessed_file, resize_h=640, tgt_framerate=TARGET_FPS)
+                with st.spinner("동영상 전처리 중..."):
+                    video_preprocessing(save_filepath, preprocessed_file, resize_h=640, tgt_framerate=TARGET_FPS)
                 placeholder.success("동영상 전처리 완료")
                 with st.spinner("객체 탐지 중..."):
                     if 1:  # Pytorch
@@ -74,11 +77,12 @@ def main():
                         from Model.onnx_tensorrt.utils import BaseEngine
                         pred = BaseEngine(engine_path='./Model/onnx_tensorrt/yolov8n_custom.trt')
                         result_video_file, frame_json = pred.detect_video(file_name=preprocessed_file, user_session=user_session, conf=0.1, end2end=True)
-                placeholder.success("객체 탐지 완료, 후처리 중...")
+                placeholder.success("객체 탐지 완료")
                 json2sub(session_id=user_session, json_str=frame_json, fps=TARGET_FPS, save=True)
                 json2audio(dst_path=wav_path, json_str=frame_json, fps=TARGET_FPS, save=True)
                 audio_file = os.path.join(wav_path, "synthesized_audio.wav")
-                combine_video_audio(img_dir, audio_file, result_av_file, fps=TARGET_FPS)
+                with st.spinner("객체 탐지 결과 종합 중..."):
+                    combine_video_audio(img_dir, audio_file, result_av_file, fps=TARGET_FPS)
                 components.html(f"""
                   <div class="container">
                     <video controls preload="auto" width="{container_w}" autoplay crossorigin="anonymous">
@@ -96,6 +100,7 @@ def main():
             finally:
                 dir_func(upload_path, rmtree=True, mkdir=False)
                 dir_func(tmp_path, rmtree=True, mkdir=False)
+                dir_func(wav_path, rmtree=True, mkdir=False)
 
 
 dir_func(dst_path, rmtree=True, mkdir=True)
