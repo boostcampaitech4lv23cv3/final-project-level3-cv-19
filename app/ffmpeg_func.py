@@ -8,8 +8,8 @@ from subprocess import check_call, PIPE, Popen
 
 re_metadata = re.compile('Duration: (\d{2}):(\d{2}):(\d{2})\.\d+,.*\n.* (\d+(\.\d+)?) fps')
 pynvml.nvmlInit()
-device_count = 0
-# device_count = pynvml.nvmlDeviceGetCount()  # GPU HW Accel이 가능하면 주석 해제
+# device_count = 0
+device_count = pynvml.nvmlDeviceGetCount()  # GPU HW Accel이 가능하면 주석 해제
 
 
 def get_metadata(filename):

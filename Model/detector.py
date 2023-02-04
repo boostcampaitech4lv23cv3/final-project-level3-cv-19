@@ -19,6 +19,26 @@ APP_PATH = os.path.join(PRJ_ROOT_PATH, "app")
 SAVE_PATH = os.path.join(MODEL_DIR, "save")
 
 
+def find_location_idx(img_w, x_min, x_max):
+    left_th = img_w // 3
+    center_th = img_w * 2 // 3
+    x_center = (x_min + x_max) // 2
+    if x_center < left_th:
+        return 0
+    elif x_center < center_th:
+        return 1
+    else:
+        return 2
+
+
+def distance_heading(img_w, img_h, x_min, x_max, y_min, y_max):
+    delta_x = (x_min + x_max) / 2 - img_w / 2
+    delta_y = y_max - img_h
+    distance = math.sqrt(delta_x ** 2 + delta_y ** 2)
+    heading = -math.atan2(-delta_y, delta_x) * 180 / math.pi
+    return distance, heading
+
+
 def detect(src: str, session_id: str, conf_thres=0.25, THRESHOLD_y=0.7):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('Inference with', device)
@@ -36,10 +56,10 @@ def detect(src: str, session_id: str, conf_thres=0.25, THRESHOLD_y=0.7):
     dataset = LoadImages(src, imgsz=imgsz, stride=stride, auto=pt, vid_stride=1)
 
     json_obj = {}
-    dist_T1=0.1
-    dist_T2=0.2
-    angle_T1=45
-    angle_T2=15
+    dist_T1 = 0.1
+    dist_T2 = 0.2
+    angle_T1 = 45
+    angle_T2 = 15
 
     for frame_idx, batch in enumerate(dataset, 1):
         _, img_nparr, im0s, vid_cap, s = batch
@@ -60,32 +80,34 @@ def detect(src: str, session_id: str, conf_thres=0.25, THRESHOLD_y=0.7):
             bbox[:, :4] = scale_boxes(img_nparr.shape[2:], bbox[:, :4], (img_h, img_w)).round()
 
             json_obj[f'{frame_idx:04d}'] = {}
-            #warn_obj=[]
+            # warn_obj=[]
             with open(TXT_FILE, 'a') as f:
                 f.write(f'{frame_idx:04d}:\n')
                 for obj_id, obj in enumerate(reversed(Results(boxes=bbox, orig_shape=(img_h, img_w)).boxes), 1):
-                    x_min, y_min, x_max, y_max = obj.xyxy.squeeze().tolist()
+                    bbox = obj.xyxy.squeeze()
+                    x_min, y_min, x_max, y_max = bbox_list = bbox.tolist()
                     if y_max > img_h * THRESHOLD_y:
-                        warn = 2
-                        d_x = (x_min + x_max) / 2 - img_w / 2
-                        d_y = y_max - img_h
-                        dist = math.sqrt(pow(d_x, 2) + pow(d_y, 2))
-                        angle = 90 - math.atan2(-d_y, d_x) * 180 / math.pi
+                        dist, angle = distance_heading(img_w, img_h, *bbox_list)
 
-                        f.write(f'{obj_id:02d} {dist:.1f} {angle:.1f} {obj.xyxy.squeeze().tolist()}\n')
-                        #if dist < img_h * 0.1 or (img_h * 0.1 < dist < img_h * 0.2 and -45 <= angle <= 45) or -15 <= angle <= 15:
+                        f.write(f'{obj_id:02d} {dist:.1f} {angle:.1f} {bbox}\n')
+                        # if dist < img_h * 0.1 or (img_h * 0.1 < dist < img_h * 0.2 and -45 <= angle <= 45) or -15 <= angle <= 15:
                         #    warn = 1
-                        if dist <= img_h * dist_T1 or (img_h * dist_T1 < dist <= img_h * dist_T2 and -angle_T1 <= angle <= angle_T1) or -angle_T2 <= angle <= angle_T2:
+                        if dist <= img_h * dist_T1 or (
+                                img_h * dist_T1 < dist <= img_h * dist_T2 and -angle_T1 <= angle <= angle_T1) or -angle_T2 <= angle <= angle_T2:
                             warn = 1
-                            #warn_obj.append((c, warn, int((((x_min + x_max)/ 2 - (img_w / 2)) /(img_h * 0.1)+3 )// 2), dist, angle))
-
+                            # warn_obj.append((c, warn, int((((x_min + x_max)/ 2 - (img_w / 2)) /(img_h * 0.1)+3 )// 2), dist, angle))
+                        else:
+                            warn = 2
                         cls, conf = obj.cls.squeeze(), obj.conf.squeeze()
                         c = int(cls)
                         label = f'{model.names[c]}'
-                        annotator.box_label(obj.xyxy.squeeze(), label, color=colors(4 * (warn - 1), True))
-                        json_obj[f'{frame_idx:04d}'][f'{obj_id:02d}'] = {"class": f'{model.names[c]}', "warning_lv": f'{warn}', "location": f'{int((((x_min + x_max)/ 2 - (img_w / 2)) /(img_h * 0.1)+3 )// 2)}'}
-                    
-                    
+                        annotator.box_label(bbox, label, color=colors(4 * (warn - 1), True))
+
+                        json_obj[f'{frame_idx:04d}'][f'{obj_id:02d}'] = {"class": f'{model.names[c]}',
+                                                                         "warning_lv": f"{warn}",
+                                                                         "location": f'{find_location_idx(img_w, x_min, x_max)}',
+                                                                         "distance": round(dist, 2),
+                                                                         "heading": round(angle, 1)}
 
         cv2.imwrite(os.path.join(img_dst, f"{frame_idx:04}.jpg"), annotator.result())
 
