@@ -47,7 +47,7 @@ def main():
     if uploaded_file:
         # Save Uploaded File
         dir_func(upload_path, rmtree=True, mkdir=True)
-        fn = uploaded_file.name
+        fn = uploaded_file.name.replace(" ", "_")
         save_filepath = os.path.join(upload_path, fn)
         with open(save_filepath, 'wb') as f:
             f.write(uploaded_file.getbuffer())
@@ -81,6 +81,7 @@ def main():
                 json2sub(session_id=user_session, json_str=frame_json, fps=TARGET_FPS, save=True)
                 json2audio(dst_path=wav_path, json_str=frame_json, fps=TARGET_FPS, save=True)
                 audio_file = os.path.join(wav_path, "synthesized_audio.wav")
+                dir_func(dst_path, rmtree=False, mkdir=True)
                 with st.spinner("객체 탐지 결과 종합 중..."):
                     combine_video_audio(img_dir, audio_file, result_av_file, fps=TARGET_FPS)
                 components.html(f"""
