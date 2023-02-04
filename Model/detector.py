@@ -80,6 +80,8 @@ def detect(src: str, session_id: str, conf_thres=0.25, THRESHOLD_y=0.7):
     cv2.ellipse(mask_thres2,(int(mask_w/2),mask_h),(int(mask_h*0.4),int(mask_h*0.2)),0,240,300,255,-1)
     cv2.ellipse(mask_thres2,(int(mask_w/2),mask_h),(int(mask_h*0.6),int(mask_h*0.3)),0,255,285,255,-1)
 
+    import time
+    t1 = time.time()
 
     for frame_idx, batch in enumerate(dataset, 1):
         _, img_nparr, im0s, vid_cap, s = batch
@@ -129,5 +131,8 @@ def detect(src: str, session_id: str, conf_thres=0.25, THRESHOLD_y=0.7):
                                                                          "heading": round(angle, 1)}
 
         cv2.imwrite(os.path.join(img_dst, f"{frame_idx:04}.jpg"), cv2.addWeighted(mask, 0.2, annotator.result(),0.8,0))
+
+    elapsedtime = time.time() - t1
+    print(f'Inference time {elapsedtime}/Frames {frame_idx}')
 
     return json.dumps(json_obj, ensure_ascii=False, indent=None, sort_keys=True)
