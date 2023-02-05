@@ -89,18 +89,39 @@ class BaseEngine(object):
         mask_thres1 = np.zeros((mask_h,mask_w),np.uint8)
         mask_thres2 = np.zeros((mask_h,mask_w),np.uint8)
 
+        #threshold line settings
+        far = 0.18
+        middle = 0.145
+        near = 0.1
+
+        #threshold angle settings
+        angle_far = 15
+        angle_middle = 30
+        angle_near = 90
+        angle_center = 270
+
+        #ellipse ratio
+        ellipse_value = 2.5
+
+        #color settings
+        YELLOW = (0,255,255)
+        RED = (0,0,255)
+
+        #masking value
+        bitmask = 255
+
         #mask = np.zeros((720,1280,3),np.uint8)
-        cv2.ellipse(mask,(int(mask_w/2),mask_h),(int(mask_h*0.6),int(mask_h*0.3)),0,180,360,(0,255,255),-1)
-        cv2.ellipse(mask,(int(mask_w/2),mask_h),(int(mask_h*0.2),int(mask_h*0.1)),0,180,360,(0,0,255),-1)
-        cv2.ellipse(mask,(int(mask_w/2),mask_h),(int(mask_h*0.4),int(mask_h*0.2)),0,240,300,(0,0,255),-1)
-        cv2.ellipse(mask,(int(mask_w/2),mask_h),(int(mask_h*0.6),int(mask_h*0.3)),0,255,285,(0,0,255),-1)
+        cv2.ellipse(mask,(int(mask_w/2),mask_h),(int(mask_h * far * ellipse_value),int(mask_h * far)),0,angle_center - angle_near,angle_center + angle_near,YELLOW,-1)
+        cv2.ellipse(mask,(int(mask_w/2),mask_h),(int(mask_h * near * ellipse_value),int(mask_h * near)),0,angle_center - angle_near,angle_center + angle_near,RED,-1)
+        cv2.ellipse(mask,(int(mask_w/2),mask_h),(int(mask_h * middle * ellipse_value),int(mask_h * middle)),0,angle_center - angle_middle,angle_center + angle_middle,RED,-1)
+        cv2.ellipse(mask,(int(mask_w/2),mask_h),(int(mask_h * far * ellipse_value),int(mask_h * far)),0,angle_center - angle_far,angle_center + angle_far,RED,-1)
 
         #mask_thres1
-        cv2.ellipse(mask_thres1,(int(mask_w/2),mask_h),(int(mask_h*0.6),int(mask_h*0.3)),0,180,360,255,-1)
+        cv2.ellipse(mask_thres1,(int(mask_w/2),mask_h),(int(mask_h * far * ellipse_value),int(mask_h * far)),0,angle_center - angle_near,angle_center + angle_near,bitmask,-1)
         #mask_thres2
-        cv2.ellipse(mask_thres2,(int(mask_w/2),mask_h),(int(mask_h*0.2),int(mask_h*0.1)),0,180,360,255,-1)
-        cv2.ellipse(mask_thres2,(int(mask_w/2),mask_h),(int(mask_h*0.4),int(mask_h*0.2)),0,240,300,255,-1)
-        cv2.ellipse(mask_thres2,(int(mask_w/2),mask_h),(int(mask_h*0.6),int(mask_h*0.3)),0,255,285,255,-1)
+        cv2.ellipse(mask_thres2,(int(mask_w/2),mask_h),(int(mask_h * near * ellipse_value),int(mask_h * near)),0,angle_center - angle_near,angle_center + angle_near,bitmask,-1)
+        cv2.ellipse(mask_thres2,(int(mask_w/2),mask_h),(int(mask_h * middle * ellipse_value),int(mask_h * middle)),0,angle_center - angle_middle,angle_center + angle_middle,bitmask,-1)
+        cv2.ellipse(mask_thres2,(int(mask_w/2),mask_h),(int(mask_h * far * ellipse_value),int(mask_h * far)),0,angle_center - angle_far,angle_center + angle_far,bitmask,-1)
 
         import time
         t1 = time.time()
@@ -138,9 +159,10 @@ class BaseEngine(object):
 
                             warn=3
 
-                            if np.any((mask_thres1[int(y_min):int(y_max),int(x_min):int(x_max)] & np.ones((int(y_max-y_min),int(x_max-x_min)),np.uint8)) > 0):
+                            np_size = (int(y_max-y_min),int(x_max-x_min))
+                            if np.any((mask_thres1[int(y_min):int(y_max),int(x_min):int(x_max)] & np.ones(np_size,np.uint8)) > 0):
                                 warn = 2
-                                if np.any((mask_thres2[int(y_min):int(y_max),int(x_min):int(x_max)] & np.ones((int(y_max-y_min),int(x_max-x_min)),np.uint8)) > 0):
+                                if np.any((mask_thres2[int(y_min):int(y_max),int(x_min):int(x_max)] & np.ones(np_size,np.uint8)) > 0):
                                     warn = 1
                             
                             json_obj[f'{frame_idx:04d}'][f'{obj_id:02d}'] = {"class": f'{self.class_names[int(cls)]}',
