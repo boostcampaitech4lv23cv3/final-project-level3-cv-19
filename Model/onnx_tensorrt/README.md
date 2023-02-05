@@ -7,8 +7,8 @@ python ./TensorRT-For-YOLO-Series/export.py -o yolov8n_custom.onnx -e yolov8n_cu
 python ./TensorRT-For-YOLO-Series/export.py -o yolov8n_custom.onnx -e yolov8n_custom_int8.trt --end2end --v8 -p int8 --calib_input img_dir
 
 # Use docker images : 
-gcr.io/boostcap-final/yolov8-tensorrt 
+gcr.io/boostcamp-final/y8tsrt 
 
 # Pull & run Docker :
-docker pull gcr.io/boostcap-final/yolov8-tensorrt \
-nvidia-docker run -it -p 8002:8002 --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 gcr.io/boostcap-final/yolov8-tensorrt
+docker pull gcr.io/boostcamp-final/y8tsrt \
+nvidia-docker run -it -p 8002:8002 --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 gcr.io/boostcamp-final/y8tsrt
