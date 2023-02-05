@@ -22,7 +22,7 @@ postposition_hash = {'bicycle': '가', 'bus': '가', 'car': '가', 'carrier': '�
                      'power_controller': '이', 'stop': '이', 'table': '가', 'traffic_light': '이',
                      'traffic_light_controller': '가', 'traffic_sign': '이', 'tree_trunk': '가'}
 loc_hash = {0: "왼쪽", 1: "중앙", 2: "오른쪽"}
-warning_hash = {1: "가까이", 2: ""}
+warning_hash = {1: " 가까이", 2: ""}
 
 
 def frame_dict2caption_line(obj_data, warning_threshold=1):
