@@ -99,7 +99,7 @@ RUN apt install -y python3-opencv
 RUN pip install 'opencv-python<4.6.0.66' 
 RUN pip install 'opencv-contrib-python<4.6.0.66'
 
-RUN pip install pydub pynvml
+RUN pip install streamlit pydub pynvml
 
 WORKDIR /usr/src
 RUN rm -rf /usr/src/ultralytics
