@@ -87,7 +87,7 @@ def main():
                         tensorrt_file_path = os.path.join(TENSORRT_DIR, 'trtinference.py')
                         preprocessing_file_path = os.path.join(tmp_path, 'preprocessed.mp4')
                         tensorrt_model_file_path = os.path.join(TENSORRT_DIR, tensorrtmodel_file)
-                        cmd = f"python3.8 {tensorrt_file_path} -v {preprocessing_file_path} -e {tensorrt_model_file_path} -s {user_session} -c {slide_value}"
+                        cmd = f"python {tensorrt_file_path} -v {preprocessing_file_path} -e {tensorrt_model_file_path} -s {user_session} -c {slide_value}"
                         check_call(shlex.split(cmd), universal_newlines=True)
                         JSON_FILE = os.path.join(tmp_path, 'objdetection.json')
                         with open(JSON_FILE, "rb") as json_file:
