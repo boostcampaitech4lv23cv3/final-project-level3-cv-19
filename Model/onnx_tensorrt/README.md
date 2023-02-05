@@ -11,4 +11,4 @@ gcr.io/boostcamp-final/y8tsrt
 
 # Pull & run Docker :
 docker pull gcr.io/boostcamp-final/y8tsrt \
-nvidia-docker run -it -p 8002:8002 --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 gcr.io/boostcamp-final/y8tsrt
+nvidia-docker run -it -p 30001:30001 -p 30002:30002 --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 gcr.io/boostcamp-final/y8tsrt
