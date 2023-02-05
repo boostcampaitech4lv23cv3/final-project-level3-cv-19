@@ -57,55 +57,54 @@ def detect(src: str, session_id: str, conf_thres=0.25, THRESHOLD_y=0.7):
     dataset = LoadImages(src, imgsz=imgsz, stride=stride, auto=pt, vid_stride=1)
 
     for batch in dataset:
-        _,img_nparr, im0s, vid_cap, s = batch
-        mask_h,mask_w,_=im0s.shape
-        mask = np.zeros(im0s.shape,np.uint8)
-        mask_thres1 = np.zeros((mask_h,mask_w),np.uint8)
-        mask_thres2 = np.zeros((mask_h,mask_w),np.uint8)
+        _, img_nparr, im0s, vid_cap, s = batch
+        mask_h, mask_w, _ = im0s.shape
+        mask = np.zeros(im0s.shape, np.uint8)
+        mask_thres1 = np.zeros((mask_h, mask_w), np.uint8)
+        mask_thres2 = np.zeros((mask_h, mask_w), np.uint8)
         break
 
     json_obj = {}
-    #threshold line settings
+    # threshold line settings
     far = 0.18
     middle = 0.145
     near = 0.1
 
-    #threshold angle settings
+    # threshold angle settings
     angle_far = 15
     angle_middle = 30
     angle_near = 90
     angle_center = 270
 
-    #ellipse ratio
+    # ellipse ratio
     ellipse_value = 2.5
 
-    #color settings
-    YELLOW = (0,255,255)
-    RED = (0,0,255)
+    # color settings
+    YELLOW = (0, 255, 255)
+    RED = (0, 0, 255)
 
-    #masking value
+    # masking value
     bitmask = 255
 
+    # mask = np.zeros((720,1280,3),np.uint8)
+    cv2.ellipse(mask, (int(mask_w / 2), mask_h), (int(mask_h * far * ellipse_value), int(mask_h * far)), 0, angle_center - angle_near, angle_center + angle_near, YELLOW, -1)
+    cv2.ellipse(mask, (int(mask_w / 2), mask_h), (int(mask_h * near * ellipse_value), int(mask_h * near)), 0, angle_center - angle_near, angle_center + angle_near, RED, -1)
+    cv2.ellipse(mask, (int(mask_w / 2), mask_h), (int(mask_h * middle * ellipse_value), int(mask_h * middle)), 0, angle_center - angle_middle, angle_center + angle_middle, RED, -1)
+    cv2.ellipse(mask, (int(mask_w / 2), mask_h), (int(mask_h * far * ellipse_value), int(mask_h * far)), 0, angle_center - angle_far, angle_center + angle_far, RED, -1)
 
-    #mask = np.zeros((720,1280,3),np.uint8)
-    cv2.ellipse(mask,(int(mask_w/2),mask_h),(int(mask_h * far * ellipse_value),int(mask_h * far)),0,angle_center - angle_near,angle_center + angle_near,YELLOW,-1)
-    cv2.ellipse(mask,(int(mask_w/2),mask_h),(int(mask_h * near * ellipse_value),int(mask_h * near)),0,angle_center - angle_near,angle_center + angle_near,RED,-1)
-    cv2.ellipse(mask,(int(mask_w/2),mask_h),(int(mask_h * middle * ellipse_value),int(mask_h * middle)),0,angle_center - angle_middle,angle_center + angle_middle,RED,-1)
-    cv2.ellipse(mask,(int(mask_w/2),mask_h),(int(mask_h * far * ellipse_value),int(mask_h * far)),0,angle_center - angle_far,angle_center + angle_far,RED,-1)
-
-    #mask_thres1
-    cv2.ellipse(mask_thres1,(int(mask_w/2),mask_h),(int(mask_h * far * ellipse_value),int(mask_h * far)),0,angle_center - angle_near,angle_center + angle_near,bitmask,-1)
-    #mask_thres2
-    cv2.ellipse(mask_thres2,(int(mask_w/2),mask_h),(int(mask_h * near * ellipse_value),int(mask_h * near)),0,angle_center - angle_near,angle_center + angle_near,bitmask,-1)
-    cv2.ellipse(mask_thres2,(int(mask_w/2),mask_h),(int(mask_h * middle * ellipse_value),int(mask_h * middle)),0,angle_center - angle_middle,angle_center + angle_middle,bitmask,-1)
-    cv2.ellipse(mask_thres2,(int(mask_w/2),mask_h),(int(mask_h * far * ellipse_value),int(mask_h * far)),0,angle_center - angle_far,angle_center + angle_far,bitmask,-1)
+    # mask_thres1
+    cv2.ellipse(mask_thres1, (int(mask_w / 2), mask_h), (int(mask_h * far * ellipse_value), int(mask_h * far)), 0, angle_center - angle_near, angle_center + angle_near, bitmask, -1)
+    # mask_thres2
+    cv2.ellipse(mask_thres2, (int(mask_w / 2), mask_h), (int(mask_h * near * ellipse_value), int(mask_h * near)), 0, angle_center - angle_near, angle_center + angle_near, bitmask, -1)
+    cv2.ellipse(mask_thres2, (int(mask_w / 2), mask_h), (int(mask_h * middle * ellipse_value), int(mask_h * middle)), 0, angle_center - angle_middle, angle_center + angle_middle, bitmask, -1)
+    cv2.ellipse(mask_thres2, (int(mask_w / 2), mask_h), (int(mask_h * far * ellipse_value), int(mask_h * far)), 0, angle_center - angle_far, angle_center + angle_far, bitmask, -1)
 
     import time
     t1 = time.time()
 
     for frame_idx, batch in enumerate(dataset, 1):
         _, img_nparr, im0s, vid_cap, s = batch
-        annotator = Annotator(im0s, line_width=2, example=str(names))# disable when time measurement
+        annotator = Annotator(im0s, line_width=2, example=str(names))  # disable when time measurement
         img_nparr = torch.from_numpy(img_nparr)
 
         img_nparr = img_nparr.float()
@@ -128,33 +127,33 @@ def detect(src: str, session_id: str, conf_thres=0.25, THRESHOLD_y=0.7):
                 for obj_id, obj in enumerate(reversed(Results(boxes=bbox, orig_shape=(img_h, img_w)).boxes), 1):
                     bbox = obj.xyxy.squeeze()
                     x_min, y_min, x_max, y_max = bbox_list = bbox.tolist()
-                    
+
                     dist, angle = distance_heading(img_w, img_h, *bbox_list)
 
                     f.write(f'{obj_id:02d} {dist:.1f} {angle:.1f} {bbox}\n')
-                        
-                    warn=3
-                    np_size = (int(y_max-y_min),int(x_max-x_min))
 
-                    if np.any((mask_thres1[int(y_min):int(y_max),int(x_min):int(x_max)] & np.ones(np_size, np.uint8)) > 0):
+                    warn = 3
+                    np_size = (int(y_max - y_min), int(x_max - x_min))
+
+                    if np.any((mask_thres1[int(y_min):int(y_max), int(x_min):int(x_max)] & np.ones(np_size, np.uint8)) > 0):
                         warn = 2
-                        if np.any((mask_thres2[int(y_min):int(y_max),int(x_min):int(x_max)] & np.ones(np_size, np.uint8)) > 0):
+                        if np.any((mask_thres2[int(y_min):int(y_max), int(x_min):int(x_max)] & np.ones(np_size, np.uint8)) > 0):
                             warn = 1
                     cls = obj.cls.squeeze()
                     c = int(cls)
                     label = f'{model.names[c]}'
-                    annotator.box_label(bbox, label, color=colors(4 * (warn - 1), True))# disable when time measurement
+                    annotator.box_label(bbox, label, color=colors(4 * (warn - 1), True))  # disable when time measurement
 
                     json_obj[f'{frame_idx:04d}'][f'{obj_id:02d}'] = {"class": f'{model.names[c]}',
-                                                                         "warning_lv": f"{warn}",
-                                                                         "location": f'{find_location_idx(img_w, x_min, x_max)}',
-                                                                         "distance": round(dist, 2),
-                                                                         "heading": round(angle, 1)}
+                                                                     "warning_lv": f"{warn}",
+                                                                     "location": f'{find_location_idx(img_w, x_min, x_max)}',
+                                                                     "distance": round(dist, 2),
+                                                                     "heading": round(angle, 1)}
 
-        cv2.imwrite(os.path.join(img_dst, f"{frame_idx:04}.jpg"), cv2.addWeighted(mask, 0.2, annotator.result(),0.8,0)) # disable when time measurement
-        #cv2.imwrite(os.path.join(img_dst, f"{frame_idx:04}.jpg"), im0s) # enable when time measurement
+        cv2.imwrite(os.path.join(img_dst, f"{frame_idx:04}.jpg"), cv2.addWeighted(mask, 0.2, annotator.result(), 0.8, 0))  # disable when time measurement
+        # cv2.imwrite(os.path.join(img_dst, f"{frame_idx:04}.jpg"), im0s)  # enable when time measurement
 
     elapsedtime = time.time() - t1
-    print(f'Inference time {elapsedtime}/Frames {frame_idx}') # time measurement
+    print(f'Inference time {elapsedtime}/Frames {frame_idx}')  # time measurement
 
     return json.dumps(json_obj, ensure_ascii=False, indent=None, sort_keys=True)
