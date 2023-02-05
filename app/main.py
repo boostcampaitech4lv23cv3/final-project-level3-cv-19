@@ -37,7 +37,9 @@ upload_path = f"app/uploaded/{user_session}/"
 dst_path = f"app/result/{user_session}/"
 tmp_path = f"app/tmp/{user_session}/"
 wav_path = f"app/audio/{user_session}/"
-tensorrtmodel_file = f"yolov8n_custom.trt"
+tensorrtmodel_file = f"yolov8n_custom_int8.trt"
+#tensorrtmodel_file = f"yolov8n_custom_fp16.trt"
+#tensorrtmodel_file = f"yolov8n_custom_fp32.trt"
 
 PRJ_ROOT_PATH = Path(__file__).parent.parent.absolute()
 MODEL_DIR = os.path.join(PRJ_ROOT_PATH, "Model")

@@ -85,7 +85,7 @@ def detect(src: str, session_id: str, conf_thres=0.25, THRESHOLD_y=0.7):
 
     for frame_idx, batch in enumerate(dataset, 1):
         _, img_nparr, im0s, vid_cap, s = batch
-        annotator = Annotator(im0s, line_width=2, example=str(names))
+        annotator = Annotator(im0s, line_width=2, example=str(names))# disable when time measurement
         img_nparr = torch.from_numpy(img_nparr)
 
         img_nparr = img_nparr.float()
@@ -122,7 +122,7 @@ def detect(src: str, session_id: str, conf_thres=0.25, THRESHOLD_y=0.7):
                     cls = obj.cls.squeeze()
                     c = int(cls)
                     label = f'{model.names[c]}'
-                    annotator.box_label(bbox, label, color=colors(4 * (warn - 1), True))
+                    annotator.box_label(bbox, label, color=colors(4 * (warn - 1), True))# disable when time measurement
 
                     json_obj[f'{frame_idx:04d}'][f'{obj_id:02d}'] = {"class": f'{model.names[c]}',
                                                                          "warning_lv": f"{warn}",
@@ -130,9 +130,10 @@ def detect(src: str, session_id: str, conf_thres=0.25, THRESHOLD_y=0.7):
                                                                          "distance": round(dist, 2),
                                                                          "heading": round(angle, 1)}
 
-        cv2.imwrite(os.path.join(img_dst, f"{frame_idx:04}.jpg"), cv2.addWeighted(mask, 0.2, annotator.result(),0.8,0))
+        cv2.imwrite(os.path.join(img_dst, f"{frame_idx:04}.jpg"), cv2.addWeighted(mask, 0.2, annotator.result(),0.8,0)) # disable when time measurement
+        #cv2.imwrite(os.path.join(img_dst, f"{frame_idx:04}.jpg"), im0s) # enable when time measurement
 
     elapsedtime = time.time() - t1
-    print(f'Inference time {elapsedtime}/Frames {frame_idx}')
+    print(f'Inference time {elapsedtime}/Frames {frame_idx}') # time measurement
 
     return json.dumps(json_obj, ensure_ascii=False, indent=None, sort_keys=True)

@@ -82,7 +82,7 @@ class BaseEngine(object):
         img_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         json_obj = {}
         print(f'TensorRT inference source:{src}') 
-        print(f'framecount:{framecount}, fps:{fps}, width:{img_w}, height:{img_h}')
+        print(f'framecount:{framecount}, fps:{fps}, width:{img_w}, height:{img_h}, confidence threshold:{conf_thres}')
 
         mask_h,mask_w = img_h, img_w
         mask = np.zeros((mask_h,mask_w, 3),np.uint8)
@@ -149,13 +149,14 @@ class BaseEngine(object):
                                                                                 "distance": round(dist, 2),
                                                                                 "heading": round(angle, 1)}
                             final_warns[obj_id] = warn                                                                
-                    frame = self.vis(frame, final_boxes, final_scores, final_cls_inds, final_warns,
-                                    conf=conf_thres, class_names=self.class_names)                                                            
-            cv2.imwrite(os.path.join(img_dst, f"{frame_idx:04}.jpg"), cv2.addWeighted(mask, 0.2, frame,0.8,0))
+                    frame = self.vis(frame, final_boxes, final_scores, final_cls_inds, final_warns,    # disable when time measurement
+                                    conf=conf_thres, class_names=self.class_names)                     # disable when time measurement                                       
+            cv2.imwrite(os.path.join(img_dst, f"{frame_idx:04}.jpg"), cv2.addWeighted(mask, 0.2, frame,0.8,0))# disable when time measurement
+            #cv2.imwrite(os.path.join(img_dst, f"{frame_idx:04}.jpg"), frame)# enable when time measurement
         cap.release()
         
         elapsedtime = time.time() - t1
-        print(f'Inference time {elapsedtime}/Frames {framecount}')
+        print(f'Inference time {elapsedtime}/Frames {framecount}') # time measurement
 
         with open(JSON_FILE, 'w') as f:
             json.dump(json_obj, f, ensure_ascii=False, indent=None, sort_keys=True)
@@ -225,10 +226,11 @@ class BaseEngine(object):
             y1 = int(box[3])
 
             color=colors(4*(warn_idx-1),True)
-            #color = (_COLORS[cls_id] * 255).astype(np.uint8).tolist()
-            text = '{}:{:.1f}%'.format(class_names[cls_id], score * 100)
+            #text = '{}:{:.1f}%'.format(class_names[cls_id], score * 100)  # class name:score%
+            text = class_names[cls_id] # class name only
             _COLORS = self.rainbow_fill(80).astype(np.float32).reshape(-1, 3)
-            txt_color = (0, 0, 0) if np.mean(_COLORS[cls_id]) > 0.5 else (255, 255, 255)
+            #txt_color = (0, 0, 0) if np.mean(_COLORS[cls_id]) > 0.5 else (255, 255, 255)
+            txt_color = (255, 255, 255)
             font = cv2.FONT_HERSHEY_SIMPLEX
 
             txt_size = cv2.getTextSize(text, font, 0.65, 1)[0]
@@ -243,7 +245,7 @@ class BaseEngine(object):
                 color,
                 -1
             )
-            cv2.putText(img, text, (x0, y0 + txt_size[1]), font, 0.6, txt_color, thickness=2)
+            cv2.putText(img, text, (x0, y0 + txt_size[1]), font, 0.65, txt_color, thickness=1)
 
         return img
 
